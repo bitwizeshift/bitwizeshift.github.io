@@ -1,0 +1,49 @@
+name: deployment
+
+on:
+  push:
+    branches:
+      - source
+
+jobs:
+  deploy:
+    name: deployment-agent
+    runs-on: macos-latest
+    steps:
+      - name: "Checkout Source"
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+
+      - name: "Checkout Master"
+        uses: actions/checkout@v2
+        with:
+          path: ${{ github.workspace }}/dist
+          ref: master
+
+      - name: "Install Hugo"
+        run: |
+          brew install hugo
+
+      - name: "Generate Static Pages"
+        run: |
+          hugo -D --destination ${{ github.workspace }}/dist
+
+      - name: "Commit Changes"
+        run: |
+          # Get the commit message from the source repo
+          commit_message="$(git log --format=%B -n 1)"
+
+          # Commit it in the generated repo
+          cd ${{ github.workspace }}/dist
+          git add --all
+          git commit -m "${commit_message}" --allow-empty \
+            --author "GitHub Action <action@github.com>"  \
+            --no-gpg-sign
+
+      - name: Deploy
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: master
+          directory: dist
