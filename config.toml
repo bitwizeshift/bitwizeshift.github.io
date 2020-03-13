@@ -1,0 +1,43 @@
+baseURL = "https://rodusek.com/"
+languageCode = "en-us"
+title = "rodusek.dev"
+theme = "hugo-notepadium"
+copyright = "©2020 Matthew Rodusek."
+
+enableRobotsTXT = true
+
+# TODO: enable this
+# Enable Disqus
+# disqusShortname = "XXX"
+
+[markup.highlight]
+codeFences = true
+noClasses = false
+
+[markup.goldmark.renderer]
+unsafe = true  # enable raw HTML in Markdown
+
+[params]
+style = "auto"  # default: auto. light: light theme, dark: dark theme, auto: based on system.
+# dateFormat -- Use default YYYY-mm-dd
+logo = ""
+slogan = "A C++ template metaprogramming blog"
+license = "MIT"  # MIT License
+
+[params.comments]
+enable = false  # Comments are enabled per blog post
+
+[params.syntax]
+use = "none"
+theme = "dracula"
+darkTheme = "xcode-dark"
+
+[params.nav]
+showCategories = true
+showTags = true
+
+# custom navigation items
+
+[[params.nav.custom]]
+title = "About"
+url = "/about"
