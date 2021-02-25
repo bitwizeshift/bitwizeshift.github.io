@@ -22,7 +22,7 @@ style = "auto"  # default: auto. light: light theme, dark: dark theme, auto: bas
 # dateFormat -- Use default YYYY-mm-dd
 logo = ""
 slogan = "A C++ template metaprogramming blog"
-license = "MIT"  # MIT License
+# license = "MIT"  # MIT License
 
 [params.comments]
 enable = false  # Comments are enabled per blog post
@@ -39,5 +39,5 @@ showTags = true
 # custom navigation items
 
 [[params.nav.custom]]
-title = "About"
-url = "/about"
+title = "Glossary"
+url = "/glossary"
