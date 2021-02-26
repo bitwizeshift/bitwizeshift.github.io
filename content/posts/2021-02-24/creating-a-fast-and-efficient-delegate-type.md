@@ -552,9 +552,11 @@ BENCHMARK(delegate);
 
 The results are surprising:
 
-![Benchmark 1](/img/2021-02-24/benchmark-1.png)
-
-[See the results on quick-bench](https://quick-bench.com/q/7Ft0Q82qSOTvmx1lE1nx6MOA5jA)
+{{<
+  figure src="/img/2021-02-24/benchmark-1.png"
+  title="Our current `Delegate` implementation compared to a raw function pointer"
+  link="https://quick-bench.com/q/7Ft0Q82qSOTvmx1lE1nx6MOA5jA"
+>}}
 
 We can see here that `Delegate` performs _ever so slightly_ slower than
 a raw function pointer does. This appears to be a consistent, though tiny,
@@ -562,7 +564,7 @@ overhead.
 
 Is there any way that we could potentially address this?
 
-## Iteration: Optimizizing our `Delegate`
+## Iteration: Optimizing our `Delegate`
 
 Since we are only benchmarking the time for `operator()` and not the time for
 binding, that means the source of the time difference may be due to something
@@ -622,9 +624,11 @@ This will allow us to remove the branch on each `operator()` call:
 
 Lets see how this performs now by rerunning our original benchmark:
 
-![Benchmark 2](/img/2021-02-24/benchmark-2.png)
-
-[See the results on Quick Bench](https://quick-bench.com/q/1XppGG1P12SjBfu1sZdj1qLWJVw)
+{{< figure
+  src="/img/2021-02-24/benchmark-2.png"
+  title="Our optimized `Delegate` implementation compared to a raw function pointer"
+  link="https://quick-bench.com/q/1XppGG1P12SjBfu1sZdj1qLWJVw"
+>}}
 
 This is what we wanted to see!
 
