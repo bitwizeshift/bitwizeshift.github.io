@@ -1,6 +1,6 @@
-baseURL = "https://rodusek.com/"
+baseURL = "https://bitwizeshift.github.io/"
 languageCode = "en-us"
-title = "rodusek.dev"
+title = "Shifting Bits of Wisdom"
 theme = "hugo-notepadium"
 copyright = "©2020 Matthew Rodusek."
 
@@ -41,3 +41,7 @@ showTags = true
 [[params.nav.custom]]
 title = "Glossary"
 url = "/glossary"
+
+[[params.nav.custom]]
+title = "About"
+url = "/about"
