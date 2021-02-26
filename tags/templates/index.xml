@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>templates on rodusek.dev</title>
+    <link>/tags/templates/</link>
+    <description>Recent content in templates on rodusek.dev</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <copyright>©2020 Matthew Rodusek.</copyright>
+    <lastBuildDate>Wed, 24 Feb 2021 20:03:14 -0500</lastBuildDate>
+    
+        <atom:link href="/tags/templates/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Creating a Fast and Efficient Delegate Type</title>
+      <link>/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type/</link>
+      <pubDate>Wed, 24 Feb 2021 20:03:14 -0500</pubDate>
+      
+      <guid>/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type/</guid>
+      <description>When working in C++ systems, a frequent design pattern that presents itself is the need to bind and reuse functions in a type-erased way. Whether it&amp;rsquo;s returning a callback from a function, or enabling support for binding listeners to an event (such as through a signal or observer pattern), this is a pattern that can be found in many places.
+In many cases, especially when working in more constrained systems such as an embedded system, these bound functions will often be nothing more than small views of existing functions &amp;ndash; either as just a function pointer, or a coupling of this with a member function call.</description>
+      
+    </item>
+    
+  </channel>
+</rss>

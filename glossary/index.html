@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.80.0" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark"><title>Glossary&nbsp;&ndash;&nbsp;rodusek.dev</title><link rel="stylesheet" href="/css/core.min.9d1ada802af58058e3d4d48eaac609df00fa5d8cc968d407476b2cee09f2e3b6296e5819f39453552b75bc2d2afc1011.css" integrity="sha384-nRragCr1gFjj1NSOqsYJ3wD6XYzJaNQHR2ss7gny47YpblgZ85RTVSt1vC0q/BAR"><body>
+    <div class="base-body"><section id="header" class="site header">
+    <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><span class="site name">rodusek.dev</span></a></span>
+        <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/categories/">Categories</a><a class="nav item" href="/tags/">Tags</a><a class="nav item" href="/glossary">Glossary</a></nav></div></span></div><div class="site slogan"><span class="title">A C++ template metaprogramming blog</span></div></section><div id="content"><div class="article-container"><section class="article header">
+    <h1 class="article title">Glossary</h1></section><article class="article markdown-body"><p>Some of the terminology I use throughout this blog may be both technical and
+uncommon, so this page serves as a quick-reference.</p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol>
+<li><a href="#vocabulary-type">Vocabulary Type</a></li>
+<li><a href="#semantic-type">Semantic Type</a></li>
+<li><a href="#cardinality">Cardinality</a></li>
+<li><a href="#correct-on-construction">Correct on Construction</a></li>
+</ol>
+<h3 id="vocabulary-type">Vocabulary Type</h3>
+<p>A <strong>Vocabulary Type</strong> is, simply put, a type that becomes part of your core
+API vocabulary. These are types that convey meaning and purpose in a
+ubiquitous way to the user. Additionally, they encapsulate their state
+and project a consistent API to their consumers that helps to ensure
+correctness.</p>
+<p>Such types are very seldomly interfaces; usually they are value objects that
+can be composed into higher order constructions in some type-safe way.</p>
+<p>Some simple examples of standard vocabulary types:</p>
+<ul>
+<li><code>std::string</code>: A sequence of arbitrary characters of (usually) printable
+characters</li>
+<li><code>std::filesystem::path</code>: A subset of <code>std::string</code> that represents only
+valid filesystem paths</li>
+<li><code>std::optional</code>: A type that represents a potentially nullable value object</li>
+<li>etc.</li>
+</ul>
+<h3 id="semantic-type">Semantic Type</h3>
+<p>A <strong>Semantic Type</strong> is a type that conveys some form of <em>semantics</em> to the
+type system.</p>
+<p>Some examples of standard semantic types:</p>
+<ul>
+<li>Smart pointers: <code>std::unique_ptr&lt;T&gt;</code>, <code>std::shared_ptr&lt;T&gt;</code>, and
+<code>std::weak_ptr&lt;T&gt;</code> all convey both <strong>nullability</strong> and <strong>ownership</strong> to the
+consumer</li>
+<li><code>std::optional&lt;T&gt;</code>: conveys the possibility of <strong>nullability</strong> but without
+any indirection</li>
+<li><code>T*</code>: Built-in, but this conveys (usually) non-owning indirect viewing of
+a potentially non-owning piece of data</li>
+<li>etc.</li>
+</ul>
+<p><strong>Semantic Type</strong>s are a subset of <strong>Vocabulary Types</strong>. A <strong>Semantic Type</strong>
+will always be a <strong>Vocabulary Type</strong>, but a <strong>Vocabulary Type</strong>
+will not always be a <strong>Semantic Type</strong></p>
+<h3 id="cardinality">Cardinality</h3>
+<p>The <strong>Cardinality</strong> of a type is its range of valid, logical input values.</p>
+<p>For primitive types, this is quite simple because in most cases it maps 1-1 with
+its valid numerical ranges (e.g. <code>uint8_t</code> is <code>0</code> to <code>255</code>).</p>
+<p>For aggregate types, this will be the product of the cardinality of its members.
+For example:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">struct</span> <span class="nc">Foo</span> <span class="p">{</span>
+  <span class="n">std</span><span class="o">::</span><span class="kt">uint8_t</span> <span class="n">u</span><span class="p">;</span>
+  <span class="kt">bool</span> <span class="n">b</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div><p>The <code>cardinality(Foo)</code> will be <code>cardinality(u) * cardinality(b)</code>.</p>
+<p>This gets trickier with user-defined types, since different practices may
+limit the range of valid input (see <a href="#correct-on-construction">correct on construction</a>)</p>
+<h3 id="correct-on-construction">Correct on Construction</h3>
+<p><strong>Correct on Construction</strong> refers to the practice of only ever being able to
+construct a type that is in a valid state. Doing so guarantees that any
+valid instance or reference to that object can only refer to something that
+is &ldquo;valid&rdquo; and thus does not require additional late-checking.</p>
+<p>Primitive types are always trivially correct-on-construction because they can
+only ever occupy their complete range of values.</p>
+</article></div></div><section id="footer" class="footer"><div class="footer-wrap">
+    <p class="copyright">©2020 Matthew Rodusek.</p>
+    <p class="powerby"><span>Powered by </span><a href="https://gohugo.io" 
+        target="_blank">Hugo</a><span> and the </span><a href="https://themes.gohugo.io/hugo-notepadium/" 
+        target="_blank">Notepadium</a></p>
+</div></section></div>
+</body>
+
+</html>

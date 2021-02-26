@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.80.0" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark"><title>Creating a Fast and Efficient Delegate Type&nbsp;&ndash;&nbsp;rodusek.dev</title><link rel="stylesheet" href="/css/core.min.9d1ada802af58058e3d4d48eaac609df00fa5d8cc968d407476b2cee09f2e3b6296e5819f39453552b75bc2d2afc1011.css" integrity="sha384-nRragCr1gFjj1NSOqsYJ3wD6XYzJaNQHR2ss7gny47YpblgZ85RTVSt1vC0q/BAR"><body>
+    <div class="base-body"><section id="header" class="site header">
+    <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><span class="site name">rodusek.dev</span></a></span>
+        <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/categories/">Categories</a><a class="nav item" href="/tags/">Tags</a><a class="nav item" href="/glossary">Glossary</a></nav></div></span></div><div class="site slogan"><span class="title">A C++ template metaprogramming blog</span></div></section><div id="content"><div class="article-container"><section class="article header">
+    <h1 class="article title">Creating a Fast and Efficient Delegate Type</h1><p class="article date">2021-02-24</p></section><article class="article markdown-body"><p>When working in C++ systems, a frequent design pattern that presents itself is
+the need to bind and reuse functions in a type-erased way. Whether it&rsquo;s
+returning a callback from a function, or enabling support for binding listeners
+to an event (such as through a <code>signal</code> or observer pattern), this is a pattern
+that can be found in many places.</p>
+<p>In many cases, especially when working in more constrained systems such as an
+embedded system, these bound functions will often be nothing more than small
+views of existing functions &ndash; either as just a function pointer, or a coupling
+of <code>this</code> with a member function call. In almost all cases, the function being
+bound is <strong>already known at compile-time</strong>. Very seldomly does a user <em>need</em> to
+bind an opaque function (such as the return from <a href="https://linux.die.net/man/3/dlsym"target="_blank"><code>::dlsym</code></a>).</p>
+<p>Although the C++ standard does provide some utilities for type-erased callbacks
+such as <a href="https://en.cppreference.com/w/cpp/utility/functional/function"target="_blank"><code>std::function</code></a>
+or <a href="https://en.cppreference.com/w/cpp/thread/packaged_task"target="_blank"><code>std::packaged_task</code></a>,
+neither of these solutions provide any standards-guaranteed performance
+characteristics, and neither of these are guaranteed to be optimized for the
+above suggested cases.</p>
+<p>We can do better. Lets set out to produce a better alternative to the existing
+solutions that could satisfy this problem in a nice, coherent, and 0-overhead
+way.</p>
+<h2 id="goal">Goal</h2>
+<p>To create a fast, light-weight, 0-overhead alternative to <code>std::function</code> that
+operates on non-owning references. For our purposes, we will be named
+<code>Delegate</code>.</p>
+<p>The primary criteria will be:</p>
+<ol>
+<li><input disabled="" type="checkbox"> Functions are bound at compile time</li>
+<li><input disabled="" type="checkbox"> Covariant functions can be bound at compile time</li>
+<li><input disabled="" type="checkbox"> 0-Overhead</li>
+</ol>
+<h2 id="a-first-attempt">A First Attempt</h2>
+<h3 id="basic-structure">Basic Structure</h3>
+<p>The most obvious start for this is to create a class template that works with
+any function signature.
+Since we need to know both the type of the return and the type of the arguments
+in order to invoke the function, we will want to use a partial specialization
+that allows us to extract this information.</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="c1">// Primary template intentionally left empty
+</span><span class="c1"></span><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">Signature</span><span class="o">&gt;</span>
+<span class="k">class</span> <span class="nc">Delegate</span><span class="p">;</span>
+
+<span class="c1">// Partial specialization so we can see the return type and arguments
+</span><span class="c1"></span><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">R</span><span class="p">,</span> <span class="k">typename</span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
+<span class="k">class</span> <span class="nc">Delegate</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+  <span class="c1">// Creates an unbound delegate
+</span><span class="c1"></span>  <span class="n">Delegate</span><span class="p">()</span> <span class="o">=</span> <span class="k">default</span><span class="p">;</span>
+
+  <span class="c1">// We want the Delegate to be copyable, since its lightweight
+</span><span class="c1"></span>  <span class="n">Delegate</span><span class="p">(</span><span class="k">const</span> <span class="n">Delegate</span><span class="o">&amp;</span> <span class="n">other</span><span class="p">)</span> <span class="o">=</span> <span class="k">default</span><span class="p">;</span>
+  <span class="k">auto</span> <span class="k">operator</span><span class="o">=</span><span class="p">(</span><span class="k">const</span> <span class="n">Delegate</span><span class="o">&amp;</span> <span class="n">other</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Delegate</span><span class="o">&amp;</span> <span class="o">=</span> <span class="k">default</span><span class="p">;</span>
+
+  <span class="p">...</span>
+
+  <span class="c1">// Call the underlying bound function
+</span><span class="c1"></span>  <span class="k">auto</span> <span class="k">operator</span><span class="p">()(</span><span class="n">Args</span><span class="p">...</span><span class="n">args</span><span class="p">)</span> <span class="k">const</span> <span class="o">-&gt;</span> <span class="n">R</span><span class="p">;</span>
+<span class="k">private</span><span class="o">:</span>
+  <span class="p">...</span>
+<span class="p">};</span>
+</code></pre></div><p>As with any type-erasure, we need to think of how we will intend to normalize
+<em>any</em> input into a <code>Delegate&lt;R(Args...)&gt;</code>.</p>
+<p>Keeping in mind that this should support both raw function pointers <em>and</em>
+bound member functions with a class instance, we will need to be able to store
+at least two pieces of data:</p>
+<ol>
+<li>a pointer to the instance (if one exists), and</li>
+<li>a function pointer to perform the invocation</li>
+</ol>
+<p>Remembering that a member function pointer is conceptually similar to a
+function pointer that takes a <code>this</code> pointer as the first instance &ndash; lets
+model that with <code>R(*)(This*, Args...)</code>!</p>
+<p>But what should the type of <code>This</code> be? There is no <em>one</em> type for <code>this</code> if we
+are binding <em>any</em> class object. Raw pointers don&rsquo;t even <em>have</em> a <code>this</code>
+pointer at all!</p>
+<p>Lets solve this with the simplest, most C++ way we can think of: <code>const void*</code>.
+This can be <code>nullptr</code> for raw function pointers that have no <code>this</code>, or it can
+be a pointer to the instance for bound member functions! Then we can simply
+cast the type back to the correct <code>This</code> pointer as needed &ndash; keep it simple!</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">R</span><span class="p">,</span> <span class="k">typename</span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
+<span class="k">class</span> <span class="nc">Delegate</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
+  <span class="p">...</span>
+<span class="k">private</span><span class="o">:</span>
+  <span class="k">using</span> <span class="n">stub_function</span> <span class="o">=</span> <span class="n">R</span><span class="p">(</span><span class="o">*</span><span class="p">)(</span><span class="k">const</span> <span class="kt">void</span><span class="o">*</span><span class="p">,</span> <span class="n">Args</span><span class="p">...);</span>
+
+  <span class="k">const</span> <span class="kt">void</span><span class="o">*</span> <span class="n">m_instance</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span> <span class="c1">///&lt; A pointer to the instance (if it exists)
+</span><span class="c1"></span>  <span class="n">stub_function</span> <span class="n">m_stub</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>   <span class="c1">///&lt; A pointer to the function to invoke
+</span><span class="c1"></span><span class="p">};</span>
+</code></pre></div><p>Great! Now we just need some way of generating these stub functions.</p>
+<h3 id="generating-stubs">Generating Stubs</h3>
+<p>So how can we create a stub function from the actual function we want to bind?</p>
+<p>Keeping in mind that we want this solution to work only for functions known at
+<strong>compile-time</strong> gives us the answer: <code>template</code>s! More specifically:
+non-type <code>template</code>s.</p>
+<p>So lets take a first crack at how we can create a stub for non-member functions:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">R</span><span class="p">,</span> <span class="k">typename</span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
+<span class="k">class</span> <span class="nc">Delegate</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
+<span class="p">{</span>
+  <span class="p">...</span>
+<span class="k">private</span><span class="o">:</span>
+  <span class="p">...</span>
+
+  <span class="c1">/// A Stub function for free functions
+</span><span class="c1"></span>  <span class="k">template</span> <span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="o">*</span><span class="n">Function</span><span class="p">)(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
+  <span class="k">static</span> <span class="k">auto</span> <span class="n">nonmember_stub</span><span class="p">(</span><span class="k">const</span> <span class="kt">void</span><span class="o">*</span> <span class="cm">/* unused */</span><span class="p">,</span> <span class="n">Args</span><span class="p">...</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">R</span>
+  <span class="p">{</span>
+    <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">invoke</span><span class="p">(</span><span class="n">Function</span><span class="p">,</span> <span class="n">args</span><span class="p">...);</span>
+  <span class="p">}</span>
+
+  <span class="p">...</span>
+<span class="p">};</span>
+</code></pre></div><p>Now we have something that models the stub function, so we just need a
+way to actually <em>make</em> the delegate. Lets do this with a simple <code>bind</code>
+function:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">R</span><span class="p">,</span> <span class="k">typename</span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
+<span class="k">class</span> <span class="nc">Delegate</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+  <span class="p">...</span>
+
+  <span class="k">template</span> <span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="o">*</span><span class="n">Function</span><span class="p">)(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
+  <span class="k">auto</span> <span class="n">bind</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kt">void</span>
+  <span class="p">{</span>
+    <span class="c1">// We don&#39;t use this for non-member functions, so just set it to nullptr
+</span><span class="c1"></span>    <span class="n">m_instance</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+    <span class="n">m_stub</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">nonmember_stub</span><span class="o">&lt;</span><span class="n">Function</span><span class="o">&gt;</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="p">...</span>
+<span class="p">};</span>
+
+<span class="c1">// Called like Delegate&lt;void()&gt;{}.bind&lt;&amp;foo&gt;();
+</span></code></pre></div><p>Perfect; now we have a means of binding free functions. But it turns out there
+is an even simpler way so that we can avoid having to write a <code>static</code> function
+at all &ndash; and the answer is <strong>lambdas</strong>.</p>
+<p>One really helpful but often unknown feature of non-capturing lambdas is that
+they are convertible to a function pointer of the same signature. This allows us
+to avoid wring a whole separate function template:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp">  <span class="k">template</span> <span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="o">*</span><span class="n">Function</span><span class="p">)(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
+  <span class="k">auto</span> <span class="n">bind</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kt">void</span>
+  <span class="p">{</span>
+    <span class="n">m_instance</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+    <span class="n">m_stub</span> <span class="o">=</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="n">stub_function</span><span class="o">&gt;</span><span class="p">([](</span><span class="k">const</span> <span class="kt">void</span><span class="o">*</span><span class="p">,</span> <span class="n">Args</span><span class="p">...</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">R</span><span class="p">{</span>
+      <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">invoke</span><span class="p">(</span><span class="n">Function</span><span class="p">,</span> <span class="n">args</span><span class="p">...);</span>
+    <span class="p">});</span>
+  <span class="p">}</span>
+</code></pre></div><h3 id="invoking-the-delegate">Invoking the <code>Delegate</code></h3>
+<p>We still need to implement the invocation of <code>operator()</code> with <code>m_instance</code>.
+Lets do this before we continue.</p>
+<p>Since <code>Delegate</code> may be constructed without any bound functions, lets throw
+an exception on failure so that we have feature-parity with <code>std::function</code></p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">class</span> <span class="nc">BadDelegateCall</span> <span class="o">:</span> <span class="k">public</span> <span class="n">std</span><span class="o">::</span><span class="n">exception</span> <span class="p">{</span> <span class="p">...</span> <span class="p">};</span>
+
+<span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">R</span><span class="p">,</span> <span class="k">typename</span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
+<span class="k">class</span> <span class="nc">Delegate</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+  <span class="p">...</span>
+
+  <span class="k">auto</span> <span class="k">operator</span><span class="p">()(</span><span class="n">Args</span><span class="p">...</span><span class="n">args</span><span class="p">)</span> <span class="k">const</span> <span class="o">-&gt;</span> <span class="n">R</span>
+  <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">m_stub</span> <span class="o">==</span> <span class="k">nullptr</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">throw</span> <span class="n">BadDelegateCall</span><span class="p">{};</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">invoke</span><span class="p">(</span><span class="n">m_stub</span><span class="p">,</span> <span class="n">m_instance</span><span class="p">,</span> <span class="n">args</span><span class="p">...);</span>
+  <span class="p">}</span>
+  <span class="p">...</span>
+<span class="p">};</span>
+</code></pre></div><h3 id="goal-check">Goal Check</h3>
+<p>Before we go any further, lets look back at our original goals</p>
+<h4 id="-functions-are-bound-at-compile-time">✔ Functions are bound at compile time</h4>
+<p>We definitely satisfied the ability to bind a non-member-function at
+compile-time!</p>
+<h4 id="-covariant-functions-can-be-bound-at-compile-time">❔ Covariant functions can be bound at compile time</h4>
+<p>Does our implementation support covariance?</p>
+<p>A simple way to test this would be to see if we can bind a <code>void(long)</code> to a
+<code>Delegate&lt;void(int)&gt;</code>:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">auto</span> <span class="nf">test</span><span class="p">(</span><span class="kt">long</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">void</span><span class="p">;</span>
+
+<span class="k">auto</span> <span class="n">d</span> <span class="o">=</span> <span class="n">Delegate</span><span class="o">&lt;</span><span class="kt">void</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="o">&gt;</span><span class="p">{};</span>
+<span class="n">d</span><span class="p">.</span><span class="n">bind</span><span class="o">&lt;&amp;</span><span class="n">test</span><span class="o">&gt;</span><span class="p">();</span>
+</code></pre></div><p>Uh-oh, this yields the following error:</p>
+<blockquote>
+<pre><code>&lt;source&gt;:17:19: error: no matching function for call to 'Delegate&lt;void(int)&gt;::bind&lt;test&gt;()'
+   17 |     d.bind&lt;&amp;test&gt;();
+      |                   ^
+&lt;source&gt;:10:10: note: candidate: 'template&lt;void (* &lt;anonymous&gt;)(int)&gt; void Delegate&lt;R(Args ...)&gt;::bind() [with R (* &lt;anonymous&gt;)(Args ...) = &lt;anonymous&gt;; R = void; Args = {int}]'
+   10 |     auto bind() -&gt; void;
+      |          ^~~~
+&lt;source&gt;:10:10: note:   template argument deduction/substitution failed:
+&lt;source&gt;:17:19: error: could not convert template argument 'test' from 'void (*)(long int)' to 'void (*)(int)'
+   17 |     d.bind&lt;&amp;test&gt;();
+      |                   ^
+</code></pre>
+</blockquote>
+<p>This makes sense, since we only have non-type templates of the specific
+signature; but <code>void(*)(long)</code> is not the same as <code>void(*)(int)</code>.</p>
+<p>Lets go back and make this work with covariance!</p>
+<h2 id="iteration-covariance">Iteration: Covariance</h2>
+<h3 id="reworking-function-binding">Reworking Function Binding</h3>
+<p>So how can we support covariance? We need a non-type <code>template</code> parameter that
+supports <em>any</em> function pointer signature that may be similar.</p>
+<p>This is where <code>C++17</code>&rsquo;s <code>auto</code>-template parameters will play a huge role.
+<code>auto</code> parameters are non-type parameters that use <code>auto</code>-deduction semantics.</p>
+<p>Lets try making this change.</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp">  <span class="k">template</span> <span class="o">&lt;</span><span class="k">auto</span> <span class="n">Function</span><span class="o">&gt;</span>
+  <span class="k">auto</span> <span class="n">bind</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kt">void</span>
+  <span class="p">{</span>
+    <span class="n">m_instance</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+    <span class="n">m_stub</span> <span class="o">=</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="n">stub_function</span><span class="o">&gt;</span><span class="p">([](</span><span class="k">const</span> <span class="kt">void</span><span class="o">*</span><span class="p">,</span> <span class="n">Args</span><span class="p">...</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">R</span><span class="p">{</span>
+      <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">invoke</span><span class="p">(</span><span class="n">Function</span><span class="p">,</span> <span class="n">args</span><span class="p">...);</span>
+    <span class="p">});</span>
+  <span class="p">}</span>
+</code></pre></div><p>With this, now the following code compiles:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">auto</span> <span class="nf">test</span><span class="p">(</span><span class="kt">long</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">void</span><span class="p">;</span>
+
+<span class="k">auto</span> <span class="n">d</span> <span class="o">=</span> <span class="n">Delegate</span><span class="o">&lt;</span><span class="kt">void</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="o">&gt;</span><span class="p">{};</span>
+<span class="n">d</span><span class="p">.</span><span class="n">bind</span><span class="o">&lt;&amp;</span><span class="n">test</span><span class="o">&gt;</span><span class="p">();</span>
+</code></pre></div><p>Right now the <code>auto</code> parameters are unconstrained, meaning that you could
+realistically call <code>bind&lt;2&gt;()</code> and this will fail spectacularly with some
+horrible template error. However, we can easily fix this by just constraining
+the template&rsquo;s inputs by using <a href="https://en.cppreference.com/w/cpp/language/sfinae"target="_blank">SFINAE</a>:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp">  <span class="k">template</span> <span class="o">&lt;</span><span class="k">auto</span> <span class="n">Function</span><span class="p">,</span>
+            <span class="k">typename</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">is_invocable_r_v</span><span class="o">&lt;</span><span class="n">R</span><span class="p">,</span> <span class="k">decltype</span><span class="p">(</span><span class="n">Function</span><span class="p">),</span><span class="n">Args</span><span class="p">...</span><span class="o">&gt;&gt;&gt;</span>
+  <span class="k">auto</span> <span class="n">bind</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kt">void</span>
+  <span class="p">{</span>
+    <span class="p">...</span>
+  <span class="p">}</span>
+</code></pre></div><p>This will now ensure that calling <code>bind&lt;2&gt;()</code> will error that there is no
+valid overload available, rather than failing with some complicated template
+error.</p>
+<h3 id="supporting-member-functions">Supporting Member Functions</h3>
+<p>Now we need to support member functions. Recall that member functions in C++
+may be both <code>const</code> and non-<code>const</code> &ndash; so there will be two separate overloads
+to support.</p>
+<p>Lets start with the <code>const</code> version. We will want to take in either a pointer
+or a reference to the object being bound; let&rsquo;s choose a reference so we don&rsquo;t
+have to consider nullptr inputs.</p>
+<p>We will only want this to work with member function pointers that are invocable
+from the reference, so we should use SFINAE to ensure that this is the case.</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp">  <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">Class</span><span class="p">,</span> <span class="k">auto</span> <span class="n">MemberFunction</span><span class="p">,</span>
+            <span class="k">typename</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">is_invocable_r_v</span><span class="o">&lt;</span><span class="n">R</span><span class="p">,</span> <span class="k">decltype</span><span class="p">(</span><span class="n">MemberFunction</span><span class="p">),</span><span class="k">const</span> <span class="n">Class</span><span class="o">*</span><span class="p">,</span> <span class="n">Args</span><span class="p">...</span><span class="o">&gt;&gt;&gt;</span>
+  <span class="k">auto</span> <span class="n">bind</span><span class="p">(</span><span class="k">const</span> <span class="n">Class</span><span class="o">&amp;</span> <span class="n">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">void</span>
+  <span class="p">{</span>
+    <span class="c1">// addressof used to ensure we get the proper pointer
+</span><span class="c1"></span>    <span class="n">m_instance</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">addressof</span><span class="p">(</span><span class="n">cls</span><span class="p">);</span>
+
+    <span class="n">m_stub</span> <span class="o">=</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="n">stub_function</span><span class="o">&gt;</span><span class="p">([](</span><span class="k">const</span> <span class="kt">void</span><span class="o">*</span> <span class="n">p</span><span class="p">,</span> <span class="n">Args</span><span class="p">...</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">R</span><span class="p">{</span>
+      <span class="c1">// Cast back to the correct type
+</span><span class="c1"></span>      <span class="k">const</span> <span class="k">auto</span><span class="o">*</span> <span class="n">c</span> <span class="o">=</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="k">const</span> <span class="n">Class</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">p</span><span class="p">);</span>
+      <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">invoke</span><span class="p">(</span><span class="n">Function</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">args</span><span class="p">...);</span>
+    <span class="p">});</span>
+  <span class="p">}</span>
+</code></pre></div><p>Recall that for this to work, we will need to cast the <code>const void*</code> back to
+a <code>const Class*</code>.</p>
+<p>Okay, now lets do the same for non-<code>const</code> member functions:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp">  <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">Class</span><span class="p">,</span> <span class="k">auto</span> <span class="n">MemberFunction</span><span class="p">,</span>
+            <span class="k">typename</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">is_invocable_r_v</span><span class="o">&lt;</span><span class="n">R</span><span class="p">,</span> <span class="k">decltype</span><span class="p">(</span><span class="n">MemberFunction</span><span class="p">),</span><span class="n">Class</span><span class="o">*</span><span class="p">,</span> <span class="n">Args</span><span class="p">...</span><span class="o">&gt;&gt;&gt;</span>
+  <span class="k">auto</span> <span class="n">bind</span><span class="p">(</span><span class="n">Class</span><span class="o">&amp;</span> <span class="n">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">void</span>
+  <span class="p">{</span>
+    <span class="n">m_instance</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">addressof</span><span class="p">(</span><span class="n">cls</span><span class="p">);</span>
+    <span class="n">m_stub</span> <span class="o">=</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="n">stub_function</span><span class="o">&gt;</span><span class="p">([](</span><span class="k">const</span> <span class="kt">void</span><span class="o">*</span> <span class="n">p</span><span class="p">,</span> <span class="n">Args</span><span class="p">...</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">R</span><span class="p">{</span>
+      <span class="c1">// Note: we have to const_cast here
+</span><span class="c1"></span>      <span class="k">const</span> <span class="k">auto</span><span class="o">*</span> <span class="n">c</span> <span class="o">=</span> <span class="k">const_cast</span><span class="o">&lt;</span><span class="n">Class</span><span class="o">*&gt;</span><span class="p">(</span><span class="k">static_cast</span><span class="o">&lt;</span><span class="k">const</span> <span class="n">Class</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">p</span><span class="p">));</span>
+      <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">invoke</span><span class="p">(</span><span class="n">Function</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">args</span><span class="p">...);</span>
+    <span class="p">});</span>
+  <span class="p">}</span>
+</code></pre></div><p>Recall back when we created <code>m_instance</code>, we stored this as a <code>const void*</code>.
+Because of this, we need to <code>const_cast</code> the pointer so that it can be mutable.
+Although <code>const_cast</code> is normally a cause for concern, this is one of the few
+cases where its completely safe &ndash; since we know that the input was mutable
+from the start since <code>cls</code> was mutable.</p>
+<p>There! We now have raw functions and member functions.</p>
+<h3 id="goal-check-1">Goal Check</h3>
+<p>Time to check back with our goals.</p>
+<h4 id="-functions-are-bound-at-compile-time-1">✔ Functions are bound at compile time</h4>
+<p>We still bind everything at compile-time &ndash; check!</p>
+<h4 id="-covariant-functions-can-be-bound-at-compile-time-1">✔ Covariant functions can be bound at compile time</h4>
+<p><code>auto</code> non-type parameters provide us with covariance support &ndash; check!</p>
+<h4 id="-0-overhead">❔ 0-Overhead</h4>
+<p>Does this have zero overhead?</p>
+<p>This certainly has a very small memory footprint, weighing in at one
+<code>const void*</code> and a raw function pointer. But how does this perform? Does this
+do any extra work that it shouldn&rsquo;t? Is it as <em>lightweight</em> as a pointer?</p>
+<h2 id="iteration-0-overhead">Iteration: 0-overhead</h2>
+<h3 id="binding-functions-with-move-only-parameters">Binding functions with move-only parameters</h3>
+<p>Let&rsquo;s do a simple test to see if we are doing any unexpected copies that we
+don&rsquo;t want.</p>
+<p>In particular, if we pass a move-only type to this constructor, will it do as
+we request and move the objects along &ndash; or will it copy?</p>
+<p>A simple test:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">auto</span> <span class="nf">test</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">void</span> <span class="p">{}</span>
+
+<span class="p">...</span>
+
+<span class="n">Delegate</span><span class="o">&lt;</span><span class="kt">void</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">)</span><span class="o">&gt;</span> <span class="n">d</span><span class="p">{};</span>
+<span class="n">d</span><span class="p">.</span><span class="n">bind</span><span class="o">&lt;&amp;::</span><span class="n">test</span><span class="o">&gt;</span><span class="p">();</span>
+</code></pre></div><p>This reveals a breakage, before even trying to call it:</p>
+<blockquote>
+<pre><code>&lt;source&gt;: In instantiation of 'void Delegate&lt;R(Args ...)&gt;::bind() [with auto Function = test; &lt;template-parameter-2-2&gt; = void; R = void; Args = {std::unique_ptr&lt;int, std::default_delete&lt;int&gt; &gt;}]':
+&lt;source&gt;:58:19:   required from here
+&lt;source&gt;:31:25: error: no matching function for call to 'invoke(void (*)(std::unique_ptr&lt;int&gt;), std::unique_ptr&lt;int&gt;&amp;)'
+   31 |       return std::invoke(Function, args...);
+      |              ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+</code></pre>
+</blockquote>
+<p>If we look back to what we did in the stub generated in the <code>bind</code> call, you
+might notice that we only pass the arguments as-is to the underlying function.
+Since the argument is a by-value <code>std::unique_ptr</code>, this generates a copy &ndash; and
+what we want is a <em>move</em>.</p>
+<p>The solution here is simple: use <code>std::forward</code>! <code>std::forward</code> ensures that any
+by-value or rvalue reference gets forwarded as an rvalue, and any lvalue
+reference gets forwarded as an lvalue reference.</p>
+<p>So this now changes the code to be:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp">  <span class="k">template</span> <span class="o">&lt;</span><span class="k">auto</span> <span class="n">Function</span><span class="p">,</span>
+            <span class="k">typename</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">is_invocable_r_v</span><span class="o">&lt;</span><span class="n">R</span><span class="p">,</span> <span class="k">decltype</span><span class="p">(</span><span class="n">Function</span><span class="p">),</span><span class="n">Args</span><span class="p">...</span><span class="o">&gt;&gt;&gt;</span>
+  <span class="k">auto</span> <span class="n">bind</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kt">void</span>
+  <span class="p">{</span>
+    <span class="n">m_instance</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+    <span class="n">m_stub</span> <span class="o">=</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="n">stub_function</span><span class="o">&gt;</span><span class="p">([](</span><span class="k">const</span> <span class="kt">void</span><span class="o">*</span><span class="p">,</span> <span class="n">Args</span><span class="p">...</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">R</span><span class="p">{</span>
+      <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">invoke</span><span class="p">(</span><span class="n">Function</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">forward</span><span class="o">&lt;</span><span class="n">Args</span><span class="o">&gt;</span><span class="p">(</span><span class="n">args</span><span class="p">)...);</span>
+      <span class="c1">//                           ^~~~~~~~~~~~~~~~~~~    ~
+</span><span class="c1"></span>      <span class="c1">//                           Changed here
+</span><span class="c1"></span>    <span class="p">});</span>
+  <span class="p">}</span>
+</code></pre></div><p>(The same will also need to be done for the member function versions)</p>
+<p>and now we can see the <code>bind</code> call succeed.</p>
+<h3 id="invoking-functions-with-move-only-parameters">Invoking functions with move-only parameters</h3>
+<p>Now what about invoking it? Lets see what happens when we try to invoke the
+delegate:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="n">d</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">42</span><span class="p">));</span>
+</code></pre></div><blockquote>
+<pre><code>&lt;source&gt;: In instantiation of 'R Delegate&lt;R(Args ...)&gt;::operator()(Args ...) const [with R = void; Args = {std::unique_ptr&lt;int, std::default_delete&lt;int&gt; &gt;}]':
+&lt;source&gt;:60:32:   required from here
+&lt;source&gt;:43:23: error: no matching function for call to 'invoke(void (* const&amp;)(const void*, std::unique_ptr&lt;int&gt;), const void* const&amp;, std::unique_ptr&lt;int&gt;&amp;)'
+   43 |     return std::invoke(m_stub, m_instance, args...);
+      |            ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+</code></pre>
+</blockquote>
+<p>The same problem as before occurs!</p>
+<p>Well the fix here should be simple: just change it to <code>std::forward</code> as well!</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp">  <span class="k">auto</span> <span class="nf">operator</span><span class="p">()(</span><span class="n">Args</span><span class="p">...</span><span class="n">args</span><span class="p">)</span> <span class="k">const</span> <span class="o">-&gt;</span> <span class="n">R</span>
+  <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">m_stub</span> <span class="o">==</span> <span class="k">nullptr</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">throw</span> <span class="n">BadDelegateCall</span><span class="p">{};</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">invoke</span><span class="p">(</span><span class="n">m_stub</span><span class="p">,</span> <span class="n">m_instance</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">forward</span><span class="o">&lt;</span><span class="n">Args</span><span class="o">&gt;</span><span class="p">(</span><span class="n">args</span><span class="p">)...);</span>
+  <span class="p">}</span>
+</code></pre></div><p>This works, but can we perhaps do this a little bit better? The arguments being
+passed here will currently only match the exact argument types of the input &ndash;
+which means that a <code>unique_ptr</code> by-value will see a move constructor invoked
+both here, and in the stub. Can we perhaps remove one of these moves?</p>
+<p>It turns out, we can &ndash; we just need to use more templates! We can use a
+variadic forwarding reference pack of arguments that get deduced by the
+function call. This will ensure that the fewest number of copies, moves, and
+conversions will occur from <code>operator()</code></p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp">  <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span><span class="p">...</span><span class="n">UArgs</span><span class="p">,</span>
+            <span class="k">typename</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">is_invocable_v</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...),</span><span class="n">UArgs</span><span class="p">...</span><span class="o">&gt;&gt;&gt;</span>
+  <span class="k">auto</span> <span class="k">operator</span><span class="p">()(</span><span class="n">UArgs</span><span class="o">&amp;&amp;</span><span class="p">...</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">R</span>
+  <span class="p">{</span>
+    <span class="p">...</span>
+  <span class="p">}</span>
+</code></pre></div><p>This is as few operations as can be performed, since we will always need to
+draw the hard-line at the stub-function for type-erasure. This certainly is
+0-overhead &ndash; or as close to it &ndash; as we can achieve.</p>
+<p>The last thing we really should check for is whether a bound function in a
+<code>Delegate</code> has similar performance to an opaque function pointer.</p>
+<h3 id="benchmarking">Benchmarking</h3>
+<p>To test benchmarking, lets use Google&rsquo;s <a href="https://github.com/google/benchmark"target="_blank">Microbenchmarking</a>
+library.</p>
+<h4 id="a-baseline">A Baseline</h4>
+<p>The first thing we will need is a baseline to compare against. So lets
+create that baseline to compare against. This baseline will use a basic function
+pointer that has been made opaque by the benchmark. The operation will simply
+write to some <code>volatile</code> atomic boolean, to ensure that the operation itself
+does not get elided.</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">volatile</span> <span class="n">std</span><span class="o">::</span><span class="n">atomic</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span> <span class="n">s_something_to_write</span><span class="p">{</span><span class="nb">false</span><span class="p">};</span>
+
+<span class="c1">// Baseline function: does nothing
+</span><span class="c1"></span><span class="kt">void</span> <span class="nf">do_nothing</span><span class="p">(){</span>
+  <span class="n">s_something_to_write</span><span class="p">.</span><span class="n">store</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="nf">baseline</span><span class="p">(</span><span class="n">benchmark</span><span class="o">::</span><span class="n">State</span><span class="o">&amp;</span> <span class="n">state</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">auto</span><span class="o">*</span> <span class="n">ptr</span> <span class="o">=</span> <span class="o">&amp;::</span><span class="n">do_nothing</span><span class="p">;</span>
+  <span class="n">benchmark</span><span class="o">::</span><span class="n">DoNotOptimize</span><span class="p">(</span><span class="n">ptr</span><span class="p">);</span> <span class="c1">// make the function pointer opaque
+</span><span class="c1"></span>
+  <span class="k">for</span> <span class="p">(</span><span class="k">auto</span> <span class="nl">_</span> <span class="p">:</span> <span class="n">state</span><span class="p">)</span> <span class="p">{</span>
+    <span class="p">(</span><span class="o">*</span><span class="n">ptr</span><span class="p">)();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+<span class="n">BENCHMARK</span><span class="p">(</span><span class="n">baseline</span><span class="p">);</span>
+</code></pre></div><h3 id="the-benchmark">The Benchmark</h3>
+<p>And now for the benchmark of the delegate:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="kt">void</span> <span class="nf">delegate</span><span class="p">(</span><span class="n">benchmark</span><span class="o">::</span><span class="n">State</span><span class="o">&amp;</span> <span class="n">state</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">auto</span> <span class="n">d</span> <span class="o">=</span> <span class="n">Delegate</span><span class="o">&lt;</span><span class="kt">void</span><span class="p">()</span><span class="o">&gt;</span><span class="p">{};</span>
+  <span class="n">d</span><span class="p">.</span><span class="n">bind</span><span class="o">&lt;&amp;::</span><span class="n">do_nothing</span><span class="o">&gt;</span><span class="p">();</span>
+  <span class="n">benchmark</span><span class="o">::</span><span class="n">DoNotOptimize</span><span class="p">(</span><span class="n">d</span><span class="p">);</span> <span class="c1">// make the delegate opaque
+</span><span class="c1"></span>
+  <span class="k">for</span> <span class="p">(</span><span class="k">auto</span> <span class="nl">_</span> <span class="p">:</span> <span class="n">state</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">d</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="n">BENCHMARK</span><span class="p">(</span><span class="n">delegate</span><span class="p">);</span>
+</code></pre></div><h4 id="comparing-the-benchmarks">Comparing the benchmarks</h4>
+<p>The results are surprising:</p>
+<p><a target="_blank" rel="noopener noreferrer" 
+  href="/img/2021-02-24/benchmark-1.png"><img  src="/img/2021-02-24/benchmark-1.png"
+        alt="Benchmark 1"/></a></p>
+<p><a href="https://quick-bench.com/q/7Ft0Q82qSOTvmx1lE1nx6MOA5jA"target="_blank">See the results on quick-bench</a></p>
+<p>We can see here that <code>Delegate</code> performs <em>ever so slightly</em> slower than
+a raw function pointer does. This appears to be a consistent, though tiny,
+overhead.</p>
+<p>Is there any way that we could potentially address this?</p>
+<h2 id="iteration-optimizizing-our-delegate">Iteration: Optimizizing our <code>Delegate</code></h2>
+<p>Since we are only benchmarking the time for <code>operator()</code> and not the time for
+binding, that means the source of the time difference may be due to something
+in that function.</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp">  <span class="k">auto</span> <span class="nf">operator</span><span class="p">()(</span><span class="n">Args</span><span class="p">...</span><span class="n">args</span><span class="p">)</span> <span class="k">const</span> <span class="o">-&gt;</span> <span class="n">R</span>
+  <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">m_stub</span> <span class="o">==</span> <span class="k">nullptr</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">throw</span> <span class="n">BadDelegateCall</span><span class="p">{};</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">invoke</span><span class="p">(</span><span class="n">m_stub</span><span class="p">,</span> <span class="n">m_instance</span><span class="p">,</span> <span class="n">args</span><span class="p">...);</span>
+  <span class="p">}</span>
+</code></pre></div><p>If we look at <code>operator()</code>, we see that we have a branch checking
+<code>m_stub == nullptr</code> that occurs for each invocation. Since its very unlikely
+that this will actually be <code>nullptr</code> frequently (or intentionally), this seems
+like an unnecessary pessimization for us; but is there any way to get rid of it?</p>
+<p>Keeping in mind we only ever bind <code>nullptr</code> to <code>m_stub</code> on construction, what if
+we instead bind a function whose sole purpose is to <code>throw</code> the
+<code>BadDelegateCall</code>?</p>
+<p>For example:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">R</span><span class="p">,</span> <span class="k">typename</span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
+<span class="k">class</span> <span class="nc">Delegate</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
+<span class="p">{</span>
+  <span class="p">...</span>
+<span class="k">private</span><span class="o">:</span>
+  <span class="p">...</span>
+
+  <span class="na">[[noreturn]]</span>
+  <span class="k">static</span> <span class="k">auto</span> <span class="n">stub_null</span><span class="p">(</span><span class="k">const</span> <span class="kt">void</span><span class="o">*</span> <span class="n">p</span><span class="p">,</span> <span class="n">Args</span><span class="p">...)</span> <span class="o">-&gt;</span> <span class="n">R</span>
+  <span class="p">{</span>
+    <span class="k">throw</span> <span class="n">BadDelegateCall</span><span class="p">{};</span>
+  <span class="p">}</span>
+
+  <span class="p">...</span>
+
+  <span class="n">stub_function</span> <span class="n">m_stub</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">stub_null</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div><p>This will allow us to remove the branch on each <code>operator()</code> call:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp">  <span class="k">auto</span> <span class="nf">operator</span><span class="p">()(</span><span class="n">Args</span><span class="p">...</span><span class="n">args</span><span class="p">)</span> <span class="k">const</span> <span class="o">-&gt;</span> <span class="n">R</span>
+  <span class="p">{</span>
+    <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">invoke</span><span class="p">(</span><span class="n">m_stub</span><span class="p">,</span> <span class="n">m_instance</span><span class="p">,</span> <span class="n">args</span><span class="p">...);</span>
+  <span class="p">}</span>
+</code></pre></div><h3 id="benchmarking-again">Benchmarking Again</h3>
+<p>Lets see how this performs now by rerunning our original benchmark:</p>
+<p><a target="_blank" rel="noopener noreferrer" 
+  href="/img/2021-02-24/benchmark-2.png"><img  src="/img/2021-02-24/benchmark-2.png"
+        alt="Benchmark 2"/></a></p>
+<p><a href="https://quick-bench.com/q/1XppGG1P12SjBfu1sZdj1qLWJVw"target="_blank">See the results on Quick Bench</a></p>
+<p>This is what we wanted to see!</p>
+<p>We have successfully optimized our <code>Delegate</code> class to be exactly as fast as a
+raw-function pointer, while also allowing binding class member functions as
+well.</p>
+<h3 id="final-goal-check">Final Goal Check</h3>
+<p>With that completed, lets look one last time if we completed our goals.</p>
+<h4 id="-functions-are-bound-at-compile-time-2">✔ Functions are bound at compile time</h4>
+<p>We still bind everything at compile-time &ndash; check!</p>
+<h4 id="-covariant-functions-can-be-bound-at-compile-time-2">✔ Covariant functions can be bound at compile time</h4>
+<p><code>auto</code> non-type parameters provide us with covariance support &ndash; check!</p>
+<h4 id="-0-overhead-1">✔ 0-Overhead</h4>
+<p>This absolutely has 0-overhead; a tiny memory footprint, no extra operations,
+<em>AND</em> it&rsquo;s exactly as fast as a raw function pointer. What more could you ask
+for?</p>
+<h2 id="closing-thoughts">Closing Thoughts</h2>
+<p>So there we have it.</p>
+<p>We managed to check off all of the criteria from the goals laid out at the
+start. This is just one such example where a few templates and some creative
+problem solving can lead to a high-quality, 0-overhead solution.</p>
+<p>This works well in <code>signal</code>-patterns, or in class delegation callbacks where the
+lifetime of the callback is never exceed by the object being called back.</p>
+<p>I am sure ther are a number of ways that this solution can be improved-upon, but
+for most cases this is &ldquo;good enough&rdquo;.</p>
+</article><section class="article labels"><a class="category" href=/categories/intermediate-templates/>intermediate-templates</a><a class="category" href=/categories/tutorial/>tutorial</a><a class="tag" href=/tags/performance/>performance</a><a class="tag" href=/tags/templates/>templates</a><a class="tag" href=/tags/delegation/>delegation</a><a class="tag" href=/tags/c&#43;&#43;17/>c&#43;&#43;17</a></section></div></div><section id="footer" class="footer"><div class="footer-wrap">
+    <p class="copyright">©2020 Matthew Rodusek.</p>
+    <p class="powerby"><span>Powered by </span><a href="https://gohugo.io" 
+        target="_blank">Hugo</a><span> and the </span><a href="https://themes.gohugo.io/hugo-notepadium/" 
+        target="_blank">Notepadium</a></p>
+</div></section></div>
+</body>
+
+</html>

@@ -7,9 +7,50 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>©2020 Matthew Rodusek.</copyright>
+    <lastBuildDate>Wed, 24 Feb 2021 20:03:14 -0500</lastBuildDate>
     
         <atom:link href="/tags/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>c&#43;&#43;17</title>
+      <link>/tags/c&#43;&#43;17/</link>
+      <pubDate>Wed, 24 Feb 2021 20:03:14 -0500</pubDate>
+      
+      <guid>/tags/c&#43;&#43;17/</guid>
+      <description></description>
+      
+    </item>
+    
+    <item>
+      <title>delegation</title>
+      <link>/tags/delegation/</link>
+      <pubDate>Wed, 24 Feb 2021 20:03:14 -0500</pubDate>
+      
+      <guid>/tags/delegation/</guid>
+      <description></description>
+      
+    </item>
+    
+    <item>
+      <title>performance</title>
+      <link>/tags/performance/</link>
+      <pubDate>Wed, 24 Feb 2021 20:03:14 -0500</pubDate>
+      
+      <guid>/tags/performance/</guid>
+      <description></description>
+      
+    </item>
+    
+    <item>
+      <title>templates</title>
+      <link>/tags/templates/</link>
+      <pubDate>Wed, 24 Feb 2021 20:03:14 -0500</pubDate>
+      
+      <guid>/tags/templates/</guid>
+      <description></description>
+      
+    </item>
     
   </channel>
 </rss>

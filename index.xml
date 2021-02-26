@@ -7,9 +7,31 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>©2020 Matthew Rodusek.</copyright>
+    <lastBuildDate>Wed, 24 Feb 2021 20:03:14 -0500</lastBuildDate>
     
         <atom:link href="/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Posts</title>
+      <link>/posts/</link>
+      <pubDate>Wed, 24 Feb 2021 20:03:14 -0500</pubDate>
+      
+      <guid>/posts/</guid>
+      <description></description>
+      
+    </item>
+    
+    <item>
+      <title>Glossary</title>
+      <link>/glossary/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/glossary/</guid>
+      <description>Some of the terminology I use throughout this blog may be both technical and uncommon, so this page serves as a quick-reference.
+Table of Contents  Vocabulary Type Semantic Type Cardinality Correct on Construction  Vocabulary Type A Vocabulary Type is, simply put, a type that becomes part of your core API vocabulary. These are types that convey meaning and purpose in a ubiquitous way to the user. Additionally, they encapsulate their state and project a consistent API to their consumers that helps to ensure correctness.</description>
+      
+    </item>
     
   </channel>
 </rss>
