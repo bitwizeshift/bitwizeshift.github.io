@@ -31,7 +31,7 @@ including:
 
 {{< round-figure
   src="https://github.com/bitwizeshift.png?size=240"
-  title="I identify as a organic non-binary C++ compiler."
+  title="I identify as an organic non-binary C++ compiler."
   link="https://github.com/bitwizeshift"
 >}}
 
