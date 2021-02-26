@@ -30,7 +30,7 @@
       <guid>/about/</guid>
       <description>About this Blog const auto blog = Blog{&amp;#34;bitwizeshift.github.io&amp;#34;}; std::cout &amp;lt;&amp;lt; blog.details(); This blog will be a collection of my professional experiences, advice, and suggestions for working effectively with C++ &amp;ndash; with an emphasis on template metaprogramming.
 There are several segments that I intend to introduce when I have time, including:
- Template metaprogramming tips and tricks How to wrap poorly-designed APIs into something more usable Esoteric features of the C++ language Language-agnostic software design practices  About the Author  I identify as a organic non-binary C&amp;#43;&amp;#43; compiler.</description>
+ Template metaprogramming tips and tricks How to wrap poorly-designed APIs into something more usable Esoteric features of the C++ language Language-agnostic software design practices  About the Author  I identify as an organic non-binary C&amp;#43;&amp;#43; compiler.</description>
       
     </item>
     
