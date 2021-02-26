@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.80.0" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="supported-color-schemes" content="light dark"><title>Creating a Fast and Efficient Delegate Type&nbsp;&ndash;&nbsp;rodusek.dev</title><link rel="stylesheet" href="/css/core.min.9d1ada802af58058e3d4d48eaac609df00fa5d8cc968d407476b2cee09f2e3b6296e5819f39453552b75bc2d2afc1011.css" integrity="sha384-nRragCr1gFjj1NSOqsYJ3wD6XYzJaNQHR2ss7gny47YpblgZ85RTVSt1vC0q/BAR"><body>
+<meta name="supported-color-schemes" content="light dark"><title>Creating a Fast and Efficient Delegate Type&nbsp;&ndash;&nbsp;Shifting Bits of Wisdom</title><link rel="stylesheet" href="/css/core.min.9d1ada802af58058e3d4d48eaac609df00fa5d8cc968d407476b2cee09f2e3b6296e5819f39453552b75bc2d2afc1011.css" integrity="sha384-nRragCr1gFjj1NSOqsYJ3wD6XYzJaNQHR2ss7gny47YpblgZ85RTVSt1vC0q/BAR"><body>
     <div class="base-body"><section id="header" class="site header">
-    <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><span class="site name">rodusek.dev</span></a></span>
-        <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/categories/">Categories</a><a class="nav item" href="/tags/">Tags</a><a class="nav item" href="/glossary">Glossary</a></nav></div></span></div><div class="site slogan"><span class="title">A C++ template metaprogramming blog</span></div></section><div id="content"><div class="article-container"><section class="article header">
+    <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><span class="site name">Shifting Bits of Wisdom</span></a></span>
+        <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/categories/">Categories</a><a class="nav item" href="/tags/">Tags</a><a class="nav item" href="/glossary">Glossary</a><a class="nav item" href="/about">About</a></nav></div></span></div><div class="site slogan"><span class="title">A C++ template metaprogramming blog</span></div></section><div id="content"><div class="article-container"><section class="article header">
     <h1 class="article title">Creating a Fast and Efficient Delegate Type</h1><p class="article date">2021-02-24</p></section><article class="article markdown-body"><p>When working in C++ systems, a frequent design pattern that presents itself is
 the need to bind and reuse functions in a type-erased way. Whether it&rsquo;s
 returning a callback from a function, or enabling support for binding listeners
@@ -414,15 +414,16 @@ does not get elided.</p>
 <span class="n">BENCHMARK</span><span class="p">(</span><span class="n">delegate</span><span class="p">);</span>
 </code></pre></div><h4 id="comparing-the-benchmarks">Comparing the benchmarks</h4>
 <p>The results are surprising:</p>
-<p><a target="_blank" rel="noopener noreferrer" 
-  href="/img/2021-02-24/benchmark-1.png"><img  src="/img/2021-02-24/benchmark-1.png"
-        alt="Benchmark 1"/></a></p>
-<p><a href="https://quick-bench.com/q/7Ft0Q82qSOTvmx1lE1nx6MOA5jA"target="_blank">See the results on quick-bench</a></p>
+<span class="image-container"><span class="link" ><a href="https://quick-bench.com/q/7Ft0Q82qSOTvmx1lE1nx6MOA5jA" 
+        target="_blank"><img class="img" src="/img/2021-02-24/benchmark-1.png"/></a></span><span class="caption">
+            <span class="title">Our current `Delegate` implementation compared to a raw function pointer</span class="image-container-caption">
+        </span>
+</span>
 <p>We can see here that <code>Delegate</code> performs <em>ever so slightly</em> slower than
 a raw function pointer does. This appears to be a consistent, though tiny,
 overhead.</p>
 <p>Is there any way that we could potentially address this?</p>
-<h2 id="iteration-optimizizing-our-delegate">Iteration: Optimizizing our <code>Delegate</code></h2>
+<h2 id="iteration-optimizing-our-delegate">Iteration: Optimizing our <code>Delegate</code></h2>
 <p>Since we are only benchmarking the time for <code>operator()</code> and not the time for
 binding, that means the source of the time difference may be due to something
 in that function.</p>
@@ -465,10 +466,11 @@ we instead bind a function whose sole purpose is to <code>throw</code> the
   <span class="p">}</span>
 </code></pre></div><h3 id="benchmarking-again">Benchmarking Again</h3>
 <p>Lets see how this performs now by rerunning our original benchmark:</p>
-<p><a target="_blank" rel="noopener noreferrer" 
-  href="/img/2021-02-24/benchmark-2.png"><img  src="/img/2021-02-24/benchmark-2.png"
-        alt="Benchmark 2"/></a></p>
-<p><a href="https://quick-bench.com/q/1XppGG1P12SjBfu1sZdj1qLWJVw"target="_blank">See the results on Quick Bench</a></p>
+<span class="image-container"><span class="link" ><a href="https://quick-bench.com/q/1XppGG1P12SjBfu1sZdj1qLWJVw" 
+        target="_blank"><img class="img" src="/img/2021-02-24/benchmark-2.png"/></a></span><span class="caption">
+            <span class="title">Our optimized `Delegate` implementation compared to a raw function pointer</span class="image-container-caption">
+        </span>
+</span>
 <p>This is what we wanted to see!</p>
 <p>We have successfully optimized our <code>Delegate</code> class to be exactly as fast as a
 raw-function pointer, while also allowing binding class member functions as
