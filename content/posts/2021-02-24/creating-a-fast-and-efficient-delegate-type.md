@@ -30,17 +30,19 @@ characteristics, and neither of these are guaranteed to be optimized for the
 above suggested cases.
 
 We can do better. Lets set out to produce a better alternative to the existing
-solutions that could satisfy this problem in a nice, coherent, and 0-overhead
-way.
+solutions that could satisfy this problem in a nice and coherent way.
 
 ## Goal
 
-To create a fast, light-weight, 0-overhead alternative to `std::function` that
+To create a fast, light-weight alternative to `std::function` that
 operates on non-owning references. For our purposes, we will name this type
 `Delegate`.
 
 The criteria we will focus on in this post will be to be able to bind functions
 to this type at **compile-time** in a way that works for `c++11` and above
+
+Over the next few posts, we will iterate on this design to make it even better
+by introducing **covariance** and **0-overhead**.
 
 ## Basic Structure
 
@@ -71,6 +73,7 @@ public:
 
   // Call the underlying bound function
   auto operator()(Args...args) const -> R;
+
 private:
   ...
 };
@@ -102,6 +105,7 @@ cast the type back to the correct `This` pointer as needed -- keep it simple!
 ```cpp
 template <typename R, typename...Args>
 class Delegate<R(Args...)>
+{
   ...
 private:
   using stub_function = R(*)(const void*, Args...);
@@ -143,6 +147,7 @@ public:
     }
     return (*m_stub)(m_instance, args...);
   }
+
   ...
 };
 ```
@@ -160,7 +165,18 @@ non-type `template`s.
 
 ### Function stubs
 
-So lets take a first crack at how we can create a stub for non-member functions:
+So lets take a first crack at how we can create a stub for non-member functions.
+We need a **function pointer** that has the same signature as our stub pointer,
+and we need to hide the *real* function we want to call in a `template` non-type
+argument.
+
+Keep in mind that because we want a regular function pointer, we will want this
+function to be marked `static` so that it's not actually a member function of
+the class (which would create a pointer-to-member-function, which is not the
+same as a function pointer).
+
+So lets do this by making a `static` function template, that wil simply
+invoke the bound function pointer with the specified arguments:
 
 ```cpp
 template <typename R, typename...Args>
@@ -174,7 +190,7 @@ private:
   template <R(*Function)(Args...)>
   static auto nonmember_stub(const void* /* unused */, Args...args) -> R
   {
-    return std::invoke(Function, args...);
+    return (*Function)(args...);
   }
 
   ...
@@ -182,7 +198,7 @@ private:
 ```
 
 Now we have something that models the stub function, so we just need a
-way to actually _make_ the delegate. Lets do this with a simple `bind`
+way to actually *bind* this to the delegate. Lets do this with a simple `bind`
 function:
 
 ```cpp
@@ -197,6 +213,7 @@ public:
   {
     // We don't use this for non-member functions, so just set it to nullptr
     m_instance = nullptr;
+    // Bind the function pointer
     m_stub = &nonmember_stub<Function>;
   }
 
@@ -210,9 +227,15 @@ at all -- and the answer is **lambdas**.
 
 One really helpful but often unknown feature of non-capturing lambdas is that
 they are convertible to a function pointer of the same signature. This allows us
-to avoid wring a whole separate function template:
+to avoid wiring a whole separate function template:
 
 ```cpp
+template <typename R, typename...Args>
+class Delegate<R(Args...)>
+{
+public:
+  ...
+
   template <R(*Function)(Args...)>
   auto bind() -> void
   {
@@ -221,6 +244,9 @@ to avoid wring a whole separate function template:
       return (*Function)(args...);
     });
   }
+
+  ...
+};
 ```
 
 Lets give this a quick test for the sake of sanity:
@@ -240,7 +266,7 @@ assert(d(2) == 4);)
   link="https://gcc.godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAM1QDsCBlZAQwBtMQBGAFlICsupVs1qhkAUgBMAISnTSAZ0ztkBPHUqZa6AMKpWAVwC2tEJNJb0AGTy1MAOWMAjTMRAA2AAykADqgWE6rR6hiZmvv6BdDZ2jkYubl6KypiqQQwEzMQEIcam5koqanQZWQQxDs6uHt4Kmdm5YQX15baV8dVeAJSKqAbEyBwA5FIAzLbIhlgA1OKjOpgAHoM%2BxbRz2OKeAIJjE1OYs/MsCkrZG1u7O5PMp9PSzOgAIinAzASYOmys0yDTPgYnKw8MhpnV0CAQEsVmtZgB2WQ7AFAkEgS7TDHTZgGIjTADuCHeEC60zQtDq01oqGhmFW0wAtBtSXQKchCcQAFTTVAAN1cxDwM3ECPRmLFxEwBH6tFmkhkj2mWHYbw%2BpO%2BUkkc0R2zFwqelz1WoNOw%2BRh8wlVcx0BAAnj4tMwjIcGHhgLR3v1MBdrsI7i9le8vaNtZdTebA0drXaHU7pgAlUjTW3291OgB0Ge2xGACm92xuftegatcYgWZzGbTXTzwu1yOByDROwxAHoW9MdBLAwosTKDLQnH1tIqix9Rf7MCrMMSjk8R1RsawCEadqK29MAOqHPEiAhJhCHCdTpOoaYuZk%2BG3MIGYRMBWiDaaEHvA4AIAh4zCu9/j0fTskUkexaSO43IEAexAknMc5YAuBhLiuOpYjip6oPaxDvCQ0EQABe5AWOIFgRBJKMqM2DTPhXqEdB86LsuwbGkhYYWocJYQByABi/ZpHQXRltmCiVtWZGitiuJOLY6AzqR5E8qggqirWooYkYAD6th1CIj40bQ8GsKsxCIWKal1ICs5gpkajIKpJz0ToplOKpVDcWsGwQOIACssgeU8OEsnucmChyibloJGZZDmJFMnG8LamKGISlKxAyuxXEPmsfERWFVZGZierCXF8L6quzbIbiaGuJhxDEvxFbhQJJK4Qy0WKSKpUYngVDTBAJlSk4s46XpBlQW1SFiuBxCoHi9yPJRXysKwSlwvqDHtUVynTIl0rdRyvWAnxakaZkD63liAlCblholdsPgCjygZNlcSEGPewAWYCTkuUE5mlhyfFNYF6DBdMoUXatT0YgD8lA9Mh3ksd2mjHOukLQZWrTG2LZWiD/zyfQrgnvuhxHVphwQJ1T57kseB1Ao1alQ5n3pd9e39YNqMEIZwaYpj2M6n4tgfMQhPgYcznM3QhO2HJADWXqrstiGMYLYIAI4GFk04q7pRgjYVCWSttOvTFyOtK4r10q0YzC2DOSlrWJp7oOZlFWoL5P0MJmwior4NiugaYSdoVpSO4Cjq5rbkFYxYq3GcBAQFJkhQUjNHcNHCtPEMPSsCAQweUMpCmEMniF6gec6HIchgn0AysZIoycIXBB56XXQ9DLIAed4udDNwhfF6XpDl0MhcKCA3gtyX2ekHAsBIEsqQoWQFAQFlAAKIjKAwCBTcXTekGgZp4BaQSb3YrA73vreF0fPgn9UwCcJ45h3w/xAAPI4lfeKD4Xi/IFCnnf%2BixUgZHwMXQuNB6BMDYBwHg/BBDCFECgKuMghB4CcOPSAPQ0JrHHkMekH9Rhj1roMQQ4JbDn23rvX%2BecD54gwj4ehM9e4FyLjfYeedFgAA53D0ncNwaYwBkCgmfmmSQ0xsCgOQMvbquBCAkFlI3EklcZByGbjfdupBO7dyEHnfuHDp5cNHooCepAp5txznnSQA9OEj00dPbRfJiABA0NwIAA%3D"
 >}}
 
-It works perfectly! Now onto member functions.
+Excellent -- we have something that works. Now onto member functions.
 
 ### Member Function Stubs
 
@@ -262,11 +288,14 @@ same syntax of `c.bind<&Foo::do_something>()` -- and this is due to the
 template <typename R, typename...Args>
 class Delegate<R(Args...)>
 {
+public:
   ...
+
   template <R(Class::*)(Args...) const>
   //          ^~~~~
   //        Where do we get the type name 'Class' from?
-  auto bind(const Class* c) -> Delegate;
+  auto bind(const Class* c) -> void { ... }
+
   ...
 };
 ```
@@ -276,8 +305,17 @@ The simplest possibility is for us to just _add_ a `typename` parameter for
 `Class`. Lets see what happens if we do that:
 
 ```cpp
+template <typename R, typename...Args>
+class Delegate<R(Args...)>
+{
+public:
+  ...
+
   template <typename Class, R(Class::*)(Args...) const>
   auto bind(const Class* c) -> Delegate;
+
+  ...
+};
 ```
 
 Good -- so now we have a well-formed template. But notice anything different?
@@ -305,7 +343,9 @@ to use the `const void*` parameter:
 template <typename R, typename...Args>
 class Delegate<R(Args...)>
 {
+public:
   ...
+
   template <typename Class, R(Class::*MemberFunction)(Args...) const>
   auto bind(const Class* c) -> void {
     m_instance = c; // store the class pointer
@@ -315,6 +355,7 @@ class Delegate<R(Args...)>
       return (cls->*MemberFunction)(args...);
     });
   }
+
   ...
 };
 ```
@@ -360,6 +401,7 @@ Lets see what this looks like:
 template <typename R, typename...Args>
 class Delegate<R(Args...)>
 {
+public:
   ...
   template <typename Class, R(Class::*MemberFunction)(Args...)>
   auto bind(Class* c) -> void {
@@ -395,8 +437,8 @@ assert(str.empty());
   link="https://gcc.godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAM1QDsCBlZAQwBtMQBGAFlICsupVs1qhkAUgBMAISnTSAZ0ztkBPHUqZa6AMKpWAVwC2tEAGZeW9ABk8tTADljAI0zEQAdl4AHVAsLqtHqGJuY%2BfgF0tvZORq7uXorKmKqBDATMxATBxqYWSSpqdOmZBNGOLm6evAoZWTmh%2BbWl5bHx1QCUiqgGxMgcAORSZnbIhlgA1OJmOpgAHv3eRbTT2OIADACCw6PjmFMzLApKWasb21tjzMcT0szoACLJwMwEmDpsrBMgE94Gzqw8MgJrV0CAQPNFssph5ZFs/gCgSBzhNURNmAYiBMAO4IV4QDoTNC0WoTWioSGYJYTAC0qyJdFJyDxxAAVBNUAA3NzEPCTcSwlFo4XETAEXq0KaSGT3CZYdgvN5Ez5SSTTOGbYUCh7nbXq3VbN5GbzCJXTHQEACe3i0zCM%2BwYeGAtFevUwZ0uwhuTwVr3dZg15yNJr9Bwt1tt9omACVSBMrTaXfaAHSpzbEYAKD2bK7e55%2B83RiDpzOp5MdbMCjUIwHIZFbVEAekbEx0or9CnRkoMtGcPW0cvzbyFPswiswBIOD0HVAxrAI%2Bq2QubEwA6vtsSICPGEPtR%2BP46gJq4Gd5LcwAZg4/5aP0JoRO4DgAgCNjME6XyOhxPiaT9wXJAANg5Ahd2IQlpmnLBZwMedF01dFMSPVAbWIV4SEgiBf23f9hyAkCwMJOkzGwCZcPdfDIJnOcFwDA0EODU19kLCBWQAMR7VI6A6YsMwUMsKxIoUMSxZw7HQSdiNIzlUD5IUqyFVEjAAfTsZpb2Ysxp1oWDWCWYh4OFFTan%2BKcQQyNRkGUo5aJ0EznGUqhOOWVYIHEABWWR3IeLDGW3GS%2BVZOMS341NMkzIj6WjGENWFVFRXFYhJVYjjb2WHjwtC8tDLRbVBNimEdSXBt40wY0mLDBNI32HQvQUOMi1q64FHBVkAFkyviVKuNoHiQoEhkSVotYSpEo8xO0XyhtbOr2WQSKSImAL0BixSJhUtSMg0syJADCYV1qEh9lA/Zc07Xw7DeAySqU5T7LM5pLOs65bPsxznMCVyPK8nzsKW2T0HZbxgr4stMoW0jooUm60T%2Bsa5tYTsqMeoFntqc0/qa45WVc7x8vouKJgSiUJiwxGpPazq3G69KIEygSctRPKcr1YqGLKkMzRmKqkxquqGogLGWpASm4mpj7uN40tU0EkaELG49xMF2aiQh/6%2BVWmGNqGkQ7yo3bpH2ltDtFHdTrq35ZPoNw1uM8VnAeizUZs803qctLPpItzPI836/PVwHfhB6Xk3B2kos1hDhRXBhmCoK9jxSDElBxfYAGtyWxM3LcutwcWuY9%2BxWrFmDJOgaT%2BzbdfdGHUXholEZ2vy0dsoWca9lGrJdw5/bb3GOnxtnCeJpLSbGBQKY6sXiBpwIMtBmXGcKweENZi55aQjlUPQ4gCSlrKw7%2BqSY3kwUYbwKhSbt0zIKonTWD0ghwMjwnQOIVAs7uR5vw%2BB%2BFI8HUdEYZrxFGKEmrFr7OB4trdS/Q4z00XkA1eAD6LeF5JyP09Z16ogMDeYA5l/jvQ9nQMyRZWQ8T%2BstIKEx%2BqIMDCVShAN2QwK2nrLSZJdL6XVEbRs5oaE52tsQQ82cq7bQgBfe8255h4FqAoCsJU3YS0lJAsy99H4GT2k2ZsfDNQXUEcIk6Ex3Y9WEXYGSaca7bBQUg3UkgRi3j2GGWovJRCVi2JddazA7CTmhlHRCWJnGOzBCAZxdhgAKWlLuB%2BqBVR6hsTDBWK0qLkXNMtAkZxBTWIKqidAyYJroFdgQYJoTRBxikIBUE4ISmgBQOwTIX0gLOJXmtCSK9hTNTcAQCAzjkwcytASZpACBhdFYCAAY7kBikFMAMdYkzUBjJ0HIOQIIeh9GYnYzgkyCBjNmQPUgacQDuXWEIMZ3BJnTNmaQeZAxJktWOdsmZwzSBwFgEgeYKQkJkAoHTPiAAFEQygGAIA/tMzZpA0DGjwKaQI/z7CsCBSCnZkyIXeChVUYAnB1iSHBagSF7BiAAHlMQIuxBcyZ7zkAhTGeSuYKR0j4GmZMmg9AmBsA4DwfgghhCiBQEsmQQg8DOBapALoKFlgtQGDSAlZhaSgkghIGQcgeC3NWf0QQoI7CwsBcC0lYywXYjQt4PVTzRnjPOUiq5Yy5gAA5AI0kAtwCYwBkDAkxcmSQExsC0uQJ80muBCAkClGYTghJFmKpkFspFeyDlHJOQMM5UyLXXNuSAe5UaRljMkOax5lqbmkAebsro3JiD%2BA0NwIAA%3D%3D"
 >}}
 
-And it works! We have a type that we can bind free, member, and `const`-member
-functions to at compile-time!
+And now we have something that works that allows us to bind free, member, and
+`const`-member functions at compile-time!
 
 ## Closing Remarks
 
