@@ -25,14 +25,15 @@ neither of these solutions provide any standards-guaranteed performance
 characteristics, and neither of these are guaranteed to be optimized for the
 above suggested cases.</p>
 <p>We can do better. Lets set out to produce a better alternative to the existing
-solutions that could satisfy this problem in a nice, coherent, and 0-overhead
-way.</p>
+solutions that could satisfy this problem in a nice and coherent way.</p>
 <h2 id="goal">Goal</h2>
-<p>To create a fast, light-weight, 0-overhead alternative to <code>std::function</code> that
+<p>To create a fast, light-weight alternative to <code>std::function</code> that
 operates on non-owning references. For our purposes, we will name this type
 <code>Delegate</code>.</p>
 <p>The criteria we will focus on in this post will be to be able to bind functions
 to this type at <strong>compile-time</strong> in a way that works for <code>c++11</code> and above</p>
+<p>Over the next few posts, we will iterate on this design to make it even better
+by introducing <strong>covariance</strong> and <strong>0-overhead</strong>.</p>
 <h2 id="basic-structure">Basic Structure</h2>
 <p>The most obvious start for this is to create a class template that works with
 any function signature.
@@ -59,6 +60,7 @@ that allows us to extract this information.</p>
 
   <span class="c1">// Call the underlying bound function
 </span><span class="c1"></span>  <span class="k">auto</span> <span class="k">operator</span><span class="p">()(</span><span class="n">Args</span><span class="p">...</span><span class="n">args</span><span class="p">)</span> <span class="k">const</span> <span class="o">-&gt;</span> <span class="n">R</span><span class="p">;</span>
+
 <span class="k">private</span><span class="o">:</span>
   <span class="p">...</span>
 <span class="p">};</span>
@@ -83,6 +85,7 @@ be a pointer to the instance for bound member functions! Then we can simply
 cast the type back to the correct <code>This</code> pointer as needed &ndash; keep it simple!</p>
 <div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">R</span><span class="p">,</span> <span class="k">typename</span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
 <span class="k">class</span> <span class="nc">Delegate</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
+<span class="p">{</span>
   <span class="p">...</span>
 <span class="k">private</span><span class="o">:</span>
   <span class="k">using</span> <span class="n">stub_function</span> <span class="o">=</span> <span class="n">R</span><span class="p">(</span><span class="o">*</span><span class="p">)(</span><span class="k">const</span> <span class="kt">void</span><span class="o">*</span><span class="p">,</span> <span class="n">Args</span><span class="p">...);</span>
@@ -116,6 +119,7 @@ exception in such a case:</p>
     <span class="p">}</span>
     <span class="k">return</span> <span class="p">(</span><span class="o">*</span><span class="n">m_stub</span><span class="p">)(</span><span class="n">m_instance</span><span class="p">,</span> <span class="n">args</span><span class="p">...);</span>
   <span class="p">}</span>
+
   <span class="p">...</span>
 <span class="p">};</span>
 </code></pre></div><p>Okay, now before we can actually call this, we will need to find a way to
@@ -126,7 +130,16 @@ generate proper <code>m_stub</code> functions and call them</p>
 <strong>compile-time</strong> gives us the answer: <code>template</code>s! More specifically:
 non-type <code>template</code>s.</p>
 <h3 id="function-stubs">Function stubs</h3>
-<p>So lets take a first crack at how we can create a stub for non-member functions:</p>
+<p>So lets take a first crack at how we can create a stub for non-member functions.
+We need a <strong>function pointer</strong> that has the same signature as our stub pointer,
+and we need to hide the <em>real</em> function we want to call in a <code>template</code> non-type
+argument.</p>
+<p>Keep in mind that because we want a regular function pointer, we will want this
+function to be marked <code>static</code> so that it&rsquo;s not actually a member function of
+the class (which would create a pointer-to-member-function, which is not the
+same as a function pointer).</p>
+<p>So lets do this by making a <code>static</code> function template, that wil simply
+invoke the bound function pointer with the specified arguments:</p>
 <div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">R</span><span class="p">,</span> <span class="k">typename</span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
 <span class="k">class</span> <span class="nc">Delegate</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
 <span class="p">{</span>
@@ -138,13 +151,13 @@ non-type <code>template</code>s.</p>
 </span><span class="c1"></span>  <span class="k">template</span> <span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="o">*</span><span class="n">Function</span><span class="p">)(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
   <span class="k">static</span> <span class="k">auto</span> <span class="n">nonmember_stub</span><span class="p">(</span><span class="k">const</span> <span class="kt">void</span><span class="o">*</span> <span class="cm">/* unused */</span><span class="p">,</span> <span class="n">Args</span><span class="p">...</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">R</span>
   <span class="p">{</span>
-    <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">invoke</span><span class="p">(</span><span class="n">Function</span><span class="p">,</span> <span class="n">args</span><span class="p">...);</span>
+    <span class="k">return</span> <span class="p">(</span><span class="o">*</span><span class="n">Function</span><span class="p">)(</span><span class="n">args</span><span class="p">...);</span>
   <span class="p">}</span>
 
   <span class="p">...</span>
 <span class="p">};</span>
 </code></pre></div><p>Now we have something that models the stub function, so we just need a
-way to actually <em>make</em> the delegate. Lets do this with a simple <code>bind</code>
+way to actually <em>bind</em> this to the delegate. Lets do this with a simple <code>bind</code>
 function:</p>
 <div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">R</span><span class="p">,</span> <span class="k">typename</span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
 <span class="k">class</span> <span class="nc">Delegate</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
@@ -157,7 +170,8 @@ function:</p>
   <span class="p">{</span>
     <span class="c1">// We don&#39;t use this for non-member functions, so just set it to nullptr
 </span><span class="c1"></span>    <span class="n">m_instance</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
-    <span class="n">m_stub</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">nonmember_stub</span><span class="o">&lt;</span><span class="n">Function</span><span class="o">&gt;</span><span class="p">;</span>
+    <span class="c1">// Bind the function pointer
+</span><span class="c1"></span>    <span class="n">m_stub</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">nonmember_stub</span><span class="o">&lt;</span><span class="n">Function</span><span class="o">&gt;</span><span class="p">;</span>
   <span class="p">}</span>
 
   <span class="p">...</span>
@@ -167,8 +181,14 @@ is an even simpler way so that we can avoid having to write a <code>static</code
 at all &ndash; and the answer is <strong>lambdas</strong>.</p>
 <p>One really helpful but often unknown feature of non-capturing lambdas is that
 they are convertible to a function pointer of the same signature. This allows us
-to avoid wring a whole separate function template:</p>
-<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp">  <span class="k">template</span> <span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="o">*</span><span class="n">Function</span><span class="p">)(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
+to avoid wiring a whole separate function template:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">R</span><span class="p">,</span> <span class="k">typename</span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
+<span class="k">class</span> <span class="nc">Delegate</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+  <span class="p">...</span>
+
+  <span class="k">template</span> <span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="o">*</span><span class="n">Function</span><span class="p">)(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
   <span class="k">auto</span> <span class="n">bind</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kt">void</span>
   <span class="p">{</span>
     <span class="n">m_instance</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
@@ -176,6 +196,9 @@ to avoid wring a whole separate function template:</p>
       <span class="k">return</span> <span class="p">(</span><span class="o">*</span><span class="n">Function</span><span class="p">)(</span><span class="n">args</span><span class="p">...);</span>
     <span class="p">});</span>
   <span class="p">}</span>
+
+  <span class="p">...</span>
+<span class="p">};</span>
 </code></pre></div><p>Lets give this a quick test for the sake of sanity:</p>
 <div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">auto</span> <span class="nf">square</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">int</span> <span class="p">{</span> <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">x</span><span class="p">;</span> <span class="p">}</span>
 
@@ -187,7 +210,7 @@ to avoid wring a whole separate function template:</p>
         target="_blank"><img class="img" src="https://img.shields.io/badge/try-online-blue.svg" 
          alt="Try Online"/></a></span>
 </span>
-<p>It works perfectly! Now onto member functions.</p>
+<p>Excellent &ndash; we have something that works. Now onto member functions.</p>
 <h3 id="member-function-stubs">Member Function Stubs</h3>
 <p>Member function stubs are a little more complicated &ndash; because now we have to
 work with pointer-to-member syntax and take into account both <code>const</code> and
@@ -202,18 +225,30 @@ same syntax of <code>c.bind&lt;&amp;Foo::do_something&gt;()</code> &ndash; and t
 <div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">R</span><span class="p">,</span> <span class="k">typename</span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
 <span class="k">class</span> <span class="nc">Delegate</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
 <span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
   <span class="p">...</span>
+
   <span class="k">template</span> <span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Class</span><span class="o">::*</span><span class="p">)(</span><span class="n">Args</span><span class="p">...)</span> <span class="k">const</span><span class="o">&gt;</span>
   <span class="c1">//          ^~~~~
 </span><span class="c1"></span>  <span class="c1">//        Where do we get the type name &#39;Class&#39; from?
-</span><span class="c1"></span>  <span class="k">auto</span> <span class="n">bind</span><span class="p">(</span><span class="k">const</span> <span class="n">Class</span><span class="o">*</span> <span class="n">c</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Delegate</span><span class="p">;</span>
+</span><span class="c1"></span>  <span class="k">auto</span> <span class="n">bind</span><span class="p">(</span><span class="k">const</span> <span class="n">Class</span><span class="o">*</span> <span class="n">c</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">void</span> <span class="p">{</span> <span class="p">...</span> <span class="p">}</span>
+
   <span class="p">...</span>
 <span class="p">};</span>
 </code></pre></div><p>We still need to find a way to <em>name</em> the <code>Class</code> type as a template parameter.
 The simplest possibility is for us to just <em>add</em> a <code>typename</code> parameter for
 <code>Class</code>. Lets see what happens if we do that:</p>
-<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp">  <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">Class</span><span class="p">,</span> <span class="n">R</span><span class="p">(</span><span class="n">Class</span><span class="o">::*</span><span class="p">)(</span><span class="n">Args</span><span class="p">...)</span> <span class="k">const</span><span class="o">&gt;</span>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">R</span><span class="p">,</span> <span class="k">typename</span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
+<span class="k">class</span> <span class="nc">Delegate</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+  <span class="p">...</span>
+
+  <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">Class</span><span class="p">,</span> <span class="n">R</span><span class="p">(</span><span class="n">Class</span><span class="o">::*</span><span class="p">)(</span><span class="n">Args</span><span class="p">...)</span> <span class="k">const</span><span class="o">&gt;</span>
   <span class="k">auto</span> <span class="n">bind</span><span class="p">(</span><span class="k">const</span> <span class="n">Class</span><span class="o">*</span> <span class="n">c</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Delegate</span><span class="p">;</span>
+
+  <span class="p">...</span>
+<span class="p">};</span>
 </code></pre></div><p>Good &ndash; so now we have a well-formed template. But notice anything different?</p>
 <p>By adding <code>typename Class</code> as the first parameter, we can no longer simply call
 <code>c.bind&lt;&amp;Foo::do_something&gt;()</code> because the pointer is no longer the first
@@ -232,7 +267,9 @@ to use the <code>const void*</code> parameter:</p>
 <div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">R</span><span class="p">,</span> <span class="k">typename</span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
 <span class="k">class</span> <span class="nc">Delegate</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
 <span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
   <span class="p">...</span>
+
   <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">Class</span><span class="p">,</span> <span class="n">R</span><span class="p">(</span><span class="n">Class</span><span class="o">::*</span><span class="n">MemberFunction</span><span class="p">)(</span><span class="n">Args</span><span class="p">...)</span> <span class="k">const</span><span class="o">&gt;</span>
   <span class="k">auto</span> <span class="n">bind</span><span class="p">(</span><span class="k">const</span> <span class="n">Class</span><span class="o">*</span> <span class="n">c</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">void</span> <span class="p">{</span>
     <span class="n">m_instance</span> <span class="o">=</span> <span class="n">c</span><span class="p">;</span> <span class="c1">// store the class pointer
@@ -242,6 +279,7 @@ to use the <code>const void*</code> parameter:</p>
       <span class="k">return</span> <span class="p">(</span><span class="n">cls</span><span class="o">-&gt;*</span><span class="n">MemberFunction</span><span class="p">)(</span><span class="n">args</span><span class="p">...);</span>
     <span class="p">});</span>
   <span class="p">}</span>
+
   <span class="p">...</span>
 <span class="p">};</span>
 </code></pre></div><p>We finally get to use the <code>p</code> parameter and simply cast it back to
@@ -272,6 +310,7 @@ easy heterogeneous type to convert to.</p>
 <div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">R</span><span class="p">,</span> <span class="k">typename</span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
 <span class="k">class</span> <span class="nc">Delegate</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
 <span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
   <span class="p">...</span>
   <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">Class</span><span class="p">,</span> <span class="n">R</span><span class="p">(</span><span class="n">Class</span><span class="o">::*</span><span class="n">MemberFunction</span><span class="p">)(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
   <span class="k">auto</span> <span class="n">bind</span><span class="p">(</span><span class="n">Class</span><span class="o">*</span> <span class="n">c</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">void</span> <span class="p">{</span>
@@ -299,8 +338,8 @@ easy heterogeneous type to convert to.</p>
         target="_blank"><img class="img" src="https://img.shields.io/badge/try-online-blue.svg" 
          alt="Try Online"/></a></span>
 </span>
-<p>And it works! We have a type that we can bind free, member, and <code>const</code>-member
-functions to at compile-time!</p>
+<p>And now we have something that works that allows us to bind free, member, and
+<code>const</code>-member functions at compile-time!</p>
 <h2 id="closing-remarks">Closing Remarks</h2>
 <p>There we have it. Using a small amount of templates, we were able to build a
 small, light-weight utility for calling functions bound at compile-time.</p>
