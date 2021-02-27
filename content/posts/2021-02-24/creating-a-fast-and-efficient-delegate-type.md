@@ -1,23 +1,26 @@
 ---
-title: "Creating a Fast and Efficient Delegate Type"
+title: "Creating a Fast and Efficient Delegate Type (Part 1)"
 date: 2021-02-24T20:03:14-05:00
 draft: false
-tags: [performance, templates, delegation, c++17]
-categories: [intermediate-templates, tutorial]
+tags: [templates, delegate, c++11]
+categories: [basic-templates, tutorial]
 ---
+
+**This is part 1 of a 3 part series.**
 
 When working in C++ systems, a frequent design pattern that presents itself is
 the need to bind and reuse functions in a type-erased way. Whether it's
 returning a callback from a function, or enabling support for binding listeners
 to an event (such as through a `signal` or observer pattern), this is a pattern
-that can be found in many places.
+that can be found everywhere.
 
 In many cases, especially when working in more constrained systems such as an
 embedded system, these bound functions will often be nothing more than small
-views of existing functions -- either as just a function pointer, or a coupling
-of `this` with a member function call. In almost all cases, the function being
-bound is **already known at compile-time**. Very seldomly does a user _need_ to
-bind an opaque function (such as the return from [`::dlsym`](https://linux.die.net/man/3/dlsym)).
+views of existing functions -- either as just a function pointer, or as a
+coupling of `this` with a member function call. In almost all cases, the
+function being bound is **already known at compile-time**. Very seldomly does
+a user _need_ to bind an opaque function (such as the return value from a
+call to [`::dlsym`](https://linux.die.net/man/3/dlsym)).
 
 Although the C++ standard does provide some utilities for type-erased callbacks
 such as [`std::function`](https://en.cppreference.com/w/cpp/utility/functional/function)
@@ -33,18 +36,13 @@ way.
 ## Goal
 
 To create a fast, light-weight, 0-overhead alternative to `std::function` that
-operates on non-owning references. For our purposes, we will be named
+operates on non-owning references. For our purposes, we will name this type
 `Delegate`.
 
-The primary criteria will be:
+The criteria we will focus on in this post will be to be able to bind functions
+to this type at **compile-time** in a way that works for `c++11` and above
 
-1. [ ] Functions are bound at compile time
-2. [ ] Covariant functions can be bound at compile time
-3. [ ] 0-Overhead
-
-## A First Attempt
-
-### Basic Structure
+## Basic Structure
 
 The most obvious start for this is to create a class template that works with
 any function signature.
@@ -115,13 +113,52 @@ private:
 
 Great! Now we just need some way of generating these stub functions.
 
-### Generating Stubs
+## Invoking the `Delegate`
+
+Before we go to far, lets implement the invocation of `operator()` with
+`m_instance`.
+
+Since we know that we want to erase a possible instance pointer to be
+`m_instance`, and our stub is `m_stub` -- all we are really doing is calling
+the `m_stub` bound function and passing `m_instance` as the first argument,
+forwarding the rest along.
+
+However, we will want to make sure we don't accidentally call this while `m_stub`
+is `nullptr`, since that would be **undefined behavior**. Lets throw an
+exception in such a case:
+
+```cpp
+class BadDelegateCall : public std::exception { ... };
+
+template <typename R, typename...Args>
+class Delegate<R(Args...)>
+{
+public:
+  ...
+
+  auto operator()(Args...args) const -> R
+  {
+    if (m_stub == nullptr) {
+      throw BadDelegateCall{};
+    }
+    return (*m_stub)(m_instance, args...);
+  }
+  ...
+};
+```
+
+Okay, now before we can actually call this, we will need to find a way to
+generate proper `m_stub` functions and call them
+
+## Generating Stubs
 
 So how can we create a stub function from the actual function we want to bind?
 
 Keeping in mind that we want this solution to work only for functions known at
 **compile-time** gives us the answer: `template`s! More specifically:
 non-type `template`s.
+
+### Function stubs
 
 So lets take a first crack at how we can create a stub for non-member functions:
 
@@ -165,8 +202,6 @@ public:
 
   ...
 };
-
-// Called like Delegate<void()>{}.bind<&foo>();
 ```
 
 Perfect; now we have a means of binding free functions. But it turns out there
@@ -182,488 +217,195 @@ to avoid wring a whole separate function template:
   auto bind() -> void
   {
     m_instance = nullptr;
-    m_stub = static_cast<stub_function>([](const void*, Args...args) -> R{
-      return std::invoke(Function, args...);
+    m_stub = static_cast<stub_function>([](const void*, Args...args) -> R {
+      return (*Function)(args...);
     });
   }
 ```
 
-### Invoking the `Delegate`
-
-We still need to implement the invocation of `operator()` with `m_instance`.
-Lets do this before we continue.
-
-Since `Delegate` may be constructed without any bound functions, lets throw
-an exception on failure so that we have feature-parity with `std::function`
+Lets give this a quick test for the sake of sanity:
 
 ```cpp
-class BadDelegateCall : public std::exception { ... };
+auto square(int x) -> int { return x * x; }
 
-template <typename R, typename...Args>
-class Delegate<R(Args...)>
-{
-public:
-  ...
+auto d = Delegate<int(int)>{};
+d.bind<&square>();
 
-  auto operator()(Args...args) const -> R
-  {
-    if (m_stub == nullptr) {
-      throw BadDelegateCall{};
-    }
-    return std::invoke(m_stub, m_instance, args...);
-  }
-  ...
-};
+assert(d(2) == 4);)
 ```
-
-### Goal Check
-
-Before we go any further, lets look back at our original goals
-
-#### ✔ Functions are bound at compile time
-
-We definitely satisfied the ability to bind a non-member-function at
-compile-time!
-
-#### ❔ Covariant functions can be bound at compile time
-
-Does our implementation support covariance?
-
-A simple way to test this would be to see if we can bind a `void(long)` to a
-`Delegate<void(int)>`:
-
-```cpp
-auto test(long) -> void;
-
-auto d = Delegate<void(int)>{};
-d.bind<&test>();
-```
-
-Uh-oh, this yields the following error:
-
->     <source>:17:19: error: no matching function for call to 'Delegate<void(int)>::bind<test>()'
->        17 |     d.bind<&test>();
->           |                   ^
->     <source>:10:10: note: candidate: 'template<void (* <anonymous>)(int)> void Delegate<R(Args ...)>::bind() [with R (* <anonymous>)(Args ...) = <anonymous>; R = void; Args = {int}]'
->        10 |     auto bind() -> void;
->           |          ^~~~
->     <source>:10:10: note:   template argument deduction/substitution failed:
->     <source>:17:19: error: could not convert template argument 'test' from 'void (*)(long int)' to 'void (*)(int)'
->        17 |     d.bind<&test>();
->           |                   ^
-
-This makes sense, since we only have non-type templates of the specific
-signature; but `void(*)(long)` is not the same as `void(*)(int)`.
-
-Lets go back and make this work with covariance!
-
-## Iteration: Covariance
-
-### Reworking Function Binding
-
-So how can we support covariance? We need a non-type `template` parameter that
-supports *any* function pointer signature that may be similar.
-
-This is where `C++17`'s `auto`-template parameters will play a huge role.
-`auto` parameters are non-type parameters that use `auto`-deduction semantics.
-
-Lets try making this change.
-
-```cpp
-  template <auto Function>
-  auto bind() -> void
-  {
-    m_instance = nullptr;
-    m_stub = static_cast<stub_function>([](const void*, Args...args) -> R{
-      return std::invoke(Function, args...);
-    });
-  }
-```
-
-With this, now the following code compiles:
-
-```cpp
-auto test(long) -> void;
-
-auto d = Delegate<void(int)>{};
-d.bind<&test>();
-```
-
-Right now the `auto` parameters are unconstrained, meaning that you could
-realistically call `bind<2>()` and this will fail spectacularly with some
-horrible template error. However, we can easily fix this by just constraining
-the template's inputs by using [SFINAE](https://en.cppreference.com/w/cpp/language/sfinae):
-
-```cpp
-  template <auto Function,
-            typename = std::enable_if_t<std::is_invocable_r_v<R, decltype(Function),Args...>>>
-  auto bind() -> void
-  {
-    ...
-  }
-```
-
-This will now ensure that calling `bind<2>()` will error that there is no
-valid overload available, rather than failing with some complicated template
-error.
-
-### Supporting Member Functions
-
-Now we need to support member functions. Recall that member functions in C++
-may be both `const` and non-`const` -- so there will be two separate overloads
-to support.
-
-Lets start with the `const` version. We will want to take in either a pointer
-or a reference to the object being bound; let's choose a reference so we don't
-have to consider nullptr inputs.
-
-We will only want this to work with member function pointers that are invocable
-from the reference, so we should use SFINAE to ensure that this is the case.
-
-```cpp
-  template <typename Class, auto MemberFunction,
-            typename = std::enable_if_t<std::is_invocable_r_v<R, decltype(MemberFunction),const Class*, Args...>>>
-  auto bind(const Class& cls) -> void
-  {
-    // addressof used to ensure we get the proper pointer
-    m_instance = std::addressof(cls);
-
-    m_stub = static_cast<stub_function>([](const void* p, Args...args) -> R{
-      // Cast back to the correct type
-      const auto* c = static_cast<const Class*>(p);
-      return std::invoke(Function, p, args...);
-    });
-  }
-```
-
-Recall that for this to work, we will need to cast the `const void*` back to
-a `const Class*`.
-
-Okay, now lets do the same for non-`const` member functions:
-
-```cpp
-  template <typename Class, auto MemberFunction,
-            typename = std::enable_if_t<std::is_invocable_r_v<R, decltype(MemberFunction),Class*, Args...>>>
-  auto bind(Class& cls) -> void
-  {
-    m_instance = std::addressof(cls);
-    m_stub = static_cast<stub_function>([](const void* p, Args...args) -> R{
-      // Note: we have to const_cast here
-      const auto* c = const_cast<Class*>(static_cast<const Class*>(p));
-      return std::invoke(Function, p, args...);
-    });
-  }
-```
-
-Recall back when we created `m_instance`, we stored this as a `const void*`.
-Because of this, we need to `const_cast` the pointer so that it can be mutable.
-Although `const_cast` is normally a cause for concern, this is one of the few
-cases where its completely safe -- since we know that the input was mutable
-from the start since `cls` was mutable.
-
-There! We now have raw functions and member functions.
-
-### Goal Check
-
-Time to check back with our goals.
-
-#### ✔ Functions are bound at compile time
-
-We still bind everything at compile-time -- check!
-
-#### ✔ Covariant functions can be bound at compile time
-
-`auto` non-type parameters provide us with covariance support -- check!
-
-#### ❔ 0-Overhead
-
-Does this have zero overhead?
-
-This certainly has a very small memory footprint, weighing in at one
-`const void*` and a raw function pointer. But how does this perform? Does this
-do any extra work that it shouldn't? Is it as _lightweight_ as a pointer?
-
-## Iteration: 0-overhead
-
-### Binding functions with move-only parameters
-
-Let's do a simple test to see if we are doing any unexpected copies that we
-don't want.
-
-In particular, if we pass a move-only type to this constructor, will it do as
-we request and move the objects along -- or will it copy?
-
-A simple test:
-
-```cpp
-auto test(std::unique_ptr<int>) -> void {}
-
-...
-
-Delegate<void(std::unique_ptr<int>)> d{};
-d.bind<&::test>();
-```
-
-This reveals a breakage, before even trying to call it:
-
->     <source>: In instantiation of 'void Delegate<R(Args ...)>::bind() [with auto Function = test; <template-parameter-2-2> = void; R = void; Args = {std::unique_ptr<int, std::default_delete<int> >}]':
->     <source>:58:19:   required from here
->     <source>:31:25: error: no matching function for call to 'invoke(void (*)(std::unique_ptr<int>), std::unique_ptr<int>&)'
->        31 |       return std::invoke(Function, args...);
->           |              ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
-
-If we look back to what we did in the stub generated in the `bind` call, you
-might notice that we only pass the arguments as-is to the underlying function.
-Since the argument is a by-value `std::unique_ptr`, this generates a copy -- and
-what we want is a _move_.
-
-The solution here is simple: use `std::forward`! `std::forward` ensures that any
-by-value or rvalue reference gets forwarded as an rvalue, and any lvalue
-reference gets forwarded as an lvalue reference.
-
-So this now changes the code to be:
-
-```cpp
-  template <auto Function,
-            typename = std::enable_if_t<std::is_invocable_r_v<R, decltype(Function),Args...>>>
-  auto bind() -> void
-  {
-    m_instance = nullptr;
-    m_stub = static_cast<stub_function>([](const void*, Args...args) -> R{
-      return std::invoke(Function, std::forward<Args>(args)...);
-      //                           ^~~~~~~~~~~~~~~~~~~    ~
-      //                           Changed here
-    });
-  }
-```
-
-(The same will also need to be done for the member function versions)
-
-and now we can see the `bind` call succeed.
-
-### Invoking functions with move-only parameters
-
-Now what about invoking it? Lets see what happens when we try to invoke the
-delegate:
-
-```cpp
-d(std::make_unique<int>(42));
-```
-
->     <source>: In instantiation of 'R Delegate<R(Args ...)>::operator()(Args ...) const [with R = void; Args = {std::unique_ptr<int, std::default_delete<int> >}]':
->     <source>:60:32:   required from here
->     <source>:43:23: error: no matching function for call to 'invoke(void (* const&)(const void*, std::unique_ptr<int>), const void* const&, std::unique_ptr<int>&)'
->        43 |     return std::invoke(m_stub, m_instance, args...);
->           |            ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The same problem as before occurs!
-
-Well the fix here should be simple: just change it to `std::forward` as well!
-
-```cpp
-  auto operator()(Args...args) const -> R
-  {
-    if (m_stub == nullptr) {
-      throw BadDelegateCall{};
-    }
-    return std::invoke(m_stub, m_instance, std::forward<Args>(args)...);
-  }
-```
-
-This works, but can we perhaps do this a little bit better? The arguments being
-passed here will currently only match the exact argument types of the input --
-which means that a `unique_ptr` by-value will see a move constructor invoked
-both here, and in the stub. Can we perhaps remove one of these moves?
-
-It turns out, we can -- we just need to use more templates! We can use a
-variadic forwarding reference pack of arguments that get deduced by the
-function call. This will ensure that the fewest number of copies, moves, and
-conversions will occur from `operator()`
-
-```cpp
-  template <typename...UArgs,
-            typename = std::enable_if_t<std::is_invocable_v<R(Args...),UArgs...>>>
-  auto operator()(UArgs&&...args) -> R
-  {
-    ...
-  }
-```
-
-This is as few operations as can be performed, since we will always need to
-draw the hard-line at the stub-function for type-erasure. This certainly is
-0-overhead -- or as close to it -- as we can achieve.
-
-The last thing we really should check for is whether a bound function in a
-`Delegate` has similar performance to an opaque function pointer.
-
-### Benchmarking
-
-To test benchmarking, lets use Google's [Microbenchmarking](https://github.com/google/benchmark)
-library.
-
-#### A Baseline
-
-The first thing we will need is a baseline to compare against. So lets
-create that baseline to compare against. This baseline will use a basic function
-pointer that has been made opaque by the benchmark. The operation will simply
-write to some `volatile` atomic boolean, to ensure that the operation itself
-does not get elided.
-
-```cpp
-volatile std::atomic<bool> s_something_to_write{false};
-
-// Baseline function: does nothing
-void do_nothing(){
-  s_something_to_write.store(true);
-}
-
-void baseline(benchmark::State& state)
-{
-  auto* ptr = &::do_nothing;
-  benchmark::DoNotOptimize(ptr); // make the function pointer opaque
-
-  for (auto _ : state) {
-    (*ptr)();
-  }
-}
-BENCHMARK(baseline);
-```
-
-### The Benchmark
-
-And now for the benchmark of the delegate:
-
-```cpp
-void delegate(benchmark::State& state)
-{
-  auto d = Delegate<void()>{};
-  d.bind<&::do_nothing>();
-  benchmark::DoNotOptimize(d); // make the delegate opaque
-
-  for (auto _ : state) {
-    d();
-  }
-}
-
-BENCHMARK(delegate);
-```
-
-#### Comparing the benchmarks
-
-The results are surprising:
-
-{{<
-  figure src="/img/2021-02-24/benchmark-1.png"
-  title="Our current `Delegate` implementation compared to a raw function pointer"
-  link="https://quick-bench.com/q/7Ft0Q82qSOTvmx1lE1nx6MOA5jA"
->}}
-
-We can see here that `Delegate` performs _ever so slightly_ slower than
-a raw function pointer does. This appears to be a consistent, though tiny,
-overhead.
-
-Is there any way that we could potentially address this?
-
-## Iteration: Optimizing our `Delegate`
-
-Since we are only benchmarking the time for `operator()` and not the time for
-binding, that means the source of the time difference may be due to something
-in that function.
-
-```cpp
-  auto operator()(Args...args) const -> R
-  {
-    if (m_stub == nullptr) {
-      throw BadDelegateCall{};
-    }
-    return std::invoke(m_stub, m_instance, args...);
-  }
-```
-
-If we look at `operator()`, we see that we have a branch checking
-`m_stub == nullptr` that occurs for each invocation. Since its very unlikely
-that this will actually be `nullptr` frequently (or intentionally), this seems
-like an unnecessary pessimization for us; but is there any way to get rid of it?
-
-Keeping in mind we only ever bind `nullptr` to `m_stub` on construction, what if
-we instead bind a function whose sole purpose is to `throw` the
-`BadDelegateCall`?
-
-For example:
-
-```cpp
-template <typename R, typename...Args>
-class Delegate<R(Args...)>
-{
-  ...
-private:
-  ...
-
-  [[noreturn]]
-  static auto stub_null(const void* p, Args...) -> R
-  {
-    throw BadDelegateCall{};
-  }
-
-  ...
-
-  stub_function m_stub = &stub_null;
-};
-```
-
-This will allow us to remove the branch on each `operator()` call:
-
-```cpp
-  auto operator()(Args...args) const -> R
-  {
-    return std::invoke(m_stub, m_instance, args...);
-  }
-```
-
-### Benchmarking Again
-
-Lets see how this performs now by rerunning our original benchmark:
 
 {{< figure
-  src="/img/2021-02-24/benchmark-2.png"
-  title="Our optimized `Delegate` implementation compared to a raw function pointer"
-  link="https://quick-bench.com/q/1XppGG1P12SjBfu1sZdj1qLWJVw"
+  src="https://img.shields.io/badge/try-online-blue.svg"
+  alt="Try Online"
+  link="https://gcc.godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAM1QDsCBlZAQwBtMQBGAFlICsupVs1qhkAUgBMAISnTSAZ0ztkBPHUqZa6AMKpWAVwC2tEJNJb0AGTy1MAOWMAjTMRAA2AAykADqgWE6rR6hiZmvv6BdDZ2jkYubl6KypiqQQwEzMQEIcam5koqanQZWQQxDs6uHt4Kmdm5YQX15baV8dVeAJSKqAbEyBwA5FIAzLbIhlgA1OKjOpgAHoM%2BxbRz2OKeAIJjE1OYs/MsCkrZG1u7O5PMp9PSzOgAIinAzASYOmys0yDTPgYnKw8MhpnV0CAQEsVmtZgB2WQ7AFAkEgS7TDHTZgGIjTADuCHeEC60zQtDq01oqGhmFW0wAtBtSXQKchCcQAFTTVAAN1cxDwM3ECPRmLFxEwBH6tFmkhkj2mWHYbw%2BpO%2BUkkc0R2zFwqelz1WoNOw%2BRh8wlVcx0BAAnj4tMwjIcGHhgLR3v1MBdrsI7i9le8vaNtZdTebA0drXaHU7pgAlUjTW3291OgB0Ge2xGACm92xuftegatcYgWZzGbTXTzwu1yOByDROwxAHoW9MdBLAwosTKDLQnH1tIqix9Rf7MCrMMSjk8R1RsawCEadqK29MAOqHPEiAhJhCHCdTpOoaYuZk%2BG3MIGYRMBWiDaaEHvA4AIAh4zCu9/j0fTskUkexaSO43IEAexAknMc5YAuBhLiuOpYjip6oPaxDvCQ0EQABe5AWOIFgRBJKMqM2DTPhXqEdB86LsuwbGkhYYWocJYQByABi/ZpHQXRltmCiVtWZGitiuJOLY6AzqR5E8qggqirWooYkYAD6th1CIj40bQ8GsKsxCIWKal1ICs5gpkajIKpJz0ToplOKpVDcWsGwQOIACssgeU8OEsnucmChyibloJGZZDmJFMnG8LamKGISlKxAyuxXEPmsfERWFVZGZierCXF8L6quzbIbiaGuJhxDEvxFbhQJJK4Qy0WKSKpUYngVDTBAJlSk4s46XpBlQW1SFiuBxCoHi9yPJRXysKwSlwvqDHtUVynTIl0rdRyvWAnxakaZkD63liAlCblholdsPgCjygZNlcSEGPewAWYCTkuUE5mlhyfFNYF6DBdMoUXatT0YgD8lA9Mh3ksd2mjHOukLQZWrTG2LZWiD/zyfQrgnvuhxHVphwQJ1T57kseB1Ao1alQ5n3pd9e39YNqMEIZwaYpj2M6n4tgfMQhPgYcznM3QhO2HJADWXqrstiGMYLYIAI4GFk04q7pRgjYVCWSttOvTFyOtK4r10q0YzC2DOSlrWJp7oOZlFWoL5P0MJmwior4NiugaYSdoVpSO4Cjq5rbkFYxYq3GcBAQFJkhQUjNHcNHCtPEMPSsCAQweUMpCmEMniF6gec6HIchgn0AysZIoycIXBB56XXQ9DLIAed4udDNwhfF6XpDl0MhcKCA3gtyX2ekHAsBIEsqQoWQFAQFlAAKIjKAwCBTcXTekGgZp4BaQSb3YrA73vreF0fPgn9UwCcJ45h3w/xAAPI4lfeKD4Xi/IFCnnf%2BixUgZHwMXQuNB6BMDYBwHg/BBDCFECgKuMghB4CcOPSAPQ0JrHHkMekH9Rhj1roMQQ4JbDn23rvX%2BecD54gwj4ehM9e4FyLjfYeedFgAA53D0ncNwaYwBkCgmfmmSQ0xsCgOQMvbquBCAkFlI3EklcZByGbjfdupBO7dyEHnfuHDp5cNHooCepAp5txznnSQA9OEj00dPbRfJiABA0NwIAA%3D"
 >}}
 
-This is what we wanted to see!
+It works perfectly! Now onto member functions.
 
-We have successfully optimized our `Delegate` class to be exactly as fast as a
-raw-function pointer, while also allowing binding class member functions as
-well.
+### Member Function Stubs
 
-### Final Goal Check
+Member function stubs are a little more complicated -- because now we have to
+work with pointer-to-member syntax and take into account both `const` and
+non-`const` variations.
 
-With that completed, lets look one last time if we completed our goals.
+The general syntax for a pointer-to-member function is `R(Class::*)(Args...)`
+Where `R` is the return type, `Args...` are the arguments, and `Class` is the
+type that we are taking the member of.
 
-#### ✔ Functions are bound at compile time
+So how can we get this into a stub?
 
-We still bind everything at compile-time -- check!
+The first problem you might notice is that it is not possible to use the
+same syntax of `c.bind<&Foo::do_something>()` -- and this is due to the
+`Class` type now being part of the signature:
 
-#### ✔ Covariant functions can be bound at compile time
+```cpp
+template <typename R, typename...Args>
+class Delegate<R(Args...)>
+{
+  ...
+  template <R(Class::*)(Args...) const>
+  //          ^~~~~
+  //        Where do we get the type name 'Class' from?
+  auto bind(const Class* c) -> Delegate;
+  ...
+};
+```
 
-`auto` non-type parameters provide us with covariance support -- check!
+We still need to find a way to _name_ the `Class` type as a template parameter.
+The simplest possibility is for us to just _add_ a `typename` parameter for
+`Class`. Lets see what happens if we do that:
 
-#### ✔ 0-Overhead
+```cpp
+  template <typename Class, R(Class::*)(Args...) const>
+  auto bind(const Class* c) -> Delegate;
+```
 
-This absolutely has 0-overhead; a tiny memory footprint, no extra operations,
-_AND_ it's exactly as fast as a raw function pointer. What more could you ask
-for?
+Good -- so now we have a well-formed template. But notice anything different?
 
-## Closing Thoughts
+By adding `typename Class` as the first parameter, we can no longer simply call
+`c.bind<&Foo::do_something>()` because the pointer is no longer the first
+parameter! This effectively changes the call to now be:
+`c.bind<Foo,&Foo::do_Something>()`.
 
-So there we have it.
+It turns out that there is nothing, prior to `c++17`, that we can do about this
+because we need to have some way of naming the `Foo` type first. This can
+however be done with `C++17` using `auto` parameters (see
+[part 2](/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2) of
+this series for more details).
 
-We managed to check off all of the criteria from the goals laid out at the
-start. This is just one such example where a few templates and some creative
-problem solving can lead to a high-quality, 0-overhead solution.
+So for now we will have to use the above approach for binding.
 
-This works well in `signal`-patterns, or in class delegation callbacks where the
-lifetime of the callback is never exceed by the object being called back.
+### Binding const member functions
 
-I am sure ther are a number of ways that this solution can be improved-upon, but
-for most cases this is "good enough".
+Lets start with adding the binding support for `const` member functions. This
+will be very similar to our function implementation, except now we finally get
+to use the `const void*` parameter:
+
+```cpp
+template <typename R, typename...Args>
+class Delegate<R(Args...)>
+{
+  ...
+  template <typename Class, R(Class::*MemberFunction)(Args...) const>
+  auto bind(const Class* c) -> void {
+    m_instance = c; // store the class pointer
+    m_stub = static_cast<stub_function>([](const void* p, Args...args) -> R {
+      const auto* cls = static_cast<const Class*>(p);
+
+      return (cls->*MemberFunction)(args...);
+    });
+  }
+  ...
+};
+```
+
+We finally get to use the `p` parameter and simply cast it back to
+the `const Class*` type. This is safe because we know that this was what we
+bound immediately on the line before.
+
+Lets try this now, using `std::string` and trying to bind `std::string::size`:
+
+```cpp
+auto str = std::string{"Hello"};
+
+auto d = Delegate<std::string::size_type()>{};
+d.bind<std::string, &std::string::size>(&str);
+
+assert(d() == str.size());
+```
+
+{{< figure
+  src="https://img.shields.io/badge/try-online-blue.svg"
+  alt="Try Online"
+  link="https://gcc.godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAM1QDsCBlZAQwBtMQBGAFlICsupVs1qhkAUgBMAISnTSAZ0ztkBPHUqZa6AMKpWAVwC2tQVvQAZPLUwA5YwCNMxEAHYADKQAOqBYXW0eoYmgj5%2BanRWNvZGTi4AbLxKKhG0DATMxARBxqacisqYqgHpmQRRdo7Obp4KGVk5Ifl1ZRUxcSCJAJSKqAbEyBwA5FIAzNbIhlgA1OKjOpgAHoNeqXPY4u4AgmMTU5iz8ywKSlnrmzvbk8wn09LM6AAihcDMBJg6bKzTINNeBg5WHhkNM6ugQCAlitUrNXLJtv9AcCQBdpmjpswDERpgB3BBvCBdaZoWh1aa0VBQzCraYAWnWxLoZOQ%2BOIACppqgAG7OYh4GbiOGo9Ei4iYAj9WizSQyB7TLDsV7vYlfKSSObwrYiwWPC46jV67bvIxeYTKuY6AgATy8WmYRgODDwwFob36mHOV2Et2eireHtGmouxtN/sOlptdod0wASqRptbba6HQA6NNbYjABSerbXH0vf0WmMQDNZtMpro5wWaxFA5Ao7ZogD0TemOjF/oUGKlBloDj62nlBfewt9mCVmEJh0eQ6omNYBAN22FLemAHUDjiRAQEwgDmOJwnUNMnIyvFbmIDMPG/LRBtNCF2gcAEAQcZhna/R8PJySyQfC0keJOQIPdiCJOYZywOcDAXJctQxLFj1QW1iDeEhIIgP8dwAkcgJAsCiXpUZsGmXCPXwyDZ3nRdA0NBCQzNA4iwgNkADFe2KOguhLTMFHLSsSOFTFsQcax0CnYjSK5VB%2BWFathTRIwAH1rBaO9mNGGdaFg1hVmIeCRRUuoAWnUEMjUZBlOOWidBMhxlKoTi1hIiBxAAVlkdzHiwpkdxk/k2XjUt%2BLTTIsyIhkY1hTURTRMUJWIKVWI4u9Uh48LQorQz0R1QTYthXVl0bBNMBNJjw0TKMDh0b0FHjYtapuBQITZABZMq4lSrjaB4kKBMZUlaI2EqROPMTtF8oa2zqjlkEikjpgC9AYsU6YVLUjINLMiRA2mVc6hIA5QIOPMux8ax3gMkqlOU%2ByzJaSzrJuWz7Mc5yAnWNzPI8nzsKW2T0A5Lxgr48tMoW0jooUm70X%2Bsa5tYLsqMe4FnrqC1/qak42S%2Brx8vouLpgSyVpiwpGpPazrnG69KIEygScrRPKcv1YrLgQsbOVQ9DiEJXiyzCviiX%2BqTY3koVYbwKgyeMiUHGnKidNYPSCHA1bYbRUDiFQHE7gecjPhVhTXF1OjYbZhD4vFUnWLlgEeI2oaREGeMGbTAmSsti4vD5Ll/QbDm0QMW9gHMgF3rSgIzOLNkeP%2B5agumfqPfg4UE8BjknfU%2B8ld0/SNX2lsLWTv5ZPoZwj13A5Npdg4IGlh8dyWPA6gUSsSrepyo7oda7vlszldVgy9ubYv5lLi6K%2BIKuTumbueqr6wZIAaw9ZdTbT5dJHGO99nDOo%2BVEKttku9bmGsKcYatxDsUPh6CHBEBD%2BsYAFJlAAJZRWFQNV9XNoO6IuYrSouRC0YIIQv1EJAvAAAvTAykqqEnOEKTeACRToBTBNdA4DH6QLVq/eMUh4gQOfgQ6Bz84EBmwG5ICh9PaALRM1ZwBAIASQglpFGasUx%2BHgYSBhOohg9FYCAIY7khikFMEMdwEjUCiJ0HIOQoI%2BgDGYjvTgEiCCiJkV0HoK8QDuU8CIoY3AJFSJkaQORQwJEtU8Fo6RQjSBwFgEgJYRQkJkAoPTPiAAFEQygGAIF1lIjRpA0AmjwGaAIfibCsECcE7REjwleEidUYAnB3CSDCagCJ7BiAAHksTxJxOYiRbjkAhVEWUxYRR0j4CkRImg9AmBsA4DwfgghhDQIkDIOQQg8AOBapAHoKFUgtSGLSfJow6Rgkgj02QMgeA2JUYMQQYJrAxICUEkpojQk4jQl4XZjjjHiMkYkyxojFgAA54i0kSNMYAyAQQZJTJIaY2AanIA8WTXAhASDSlGJwIkCjekyE0Yk3RpB9GGKEKI0xZyHEXOsYoEAdiIXCNEZIMx5yrHgocZCnkxA/AaG4EAA%3D"
+>}}
+
+Excellent -- it works! Now we just need to do the same for non-`const` members
+
+### Binding non-`const` member functions
+
+The non-`const` version will look very similar to the `const` version. You might
+notice one issue from the initial design: our `m_instance` member is a `const void*`,
+but now our member pointers are not `const`! How can we work around this?
+
+It turns out, this is one of the few cases where a `const_cast` is actually the
+perfect solution. We know that the only `m_instance` pointer we bind to this will
+be non-`const` by the time we bound it, so it's completely safe for us to remove
+this `const`ness again. After all, we did only add `const` so that we had an
+easy heterogeneous type to convert to.
+
+Lets see what this looks like:
+
+```cpp
+template <typename R, typename...Args>
+class Delegate<R(Args...)>
+{
+  ...
+  template <typename Class, R(Class::*MemberFunction)(Args...)>
+  auto bind(Class* c) -> void {
+    m_instance = c; // store the class pointer
+    m_stub = static_cast<stub_function>([](const void* p, Args...args) -> R {
+      // Safe, because we know the pointer was bound to a non-const instance
+      auto* cls = const_cast<Class*>(static_cast<const Class*>(p));
+
+      return (cls->*MemberFunction)(args...);
+    });
+  }
+  ...
+};
+```
+
+This looks almost identical to our `const` version, except we have the one
+`const_cast`. Lets give this a quick test using `std::string` and
+`std::string::clear` as a quick example:
+
+```cpp
+auto str = std::string{"hello"};
+
+auto d = Delegate<void()>{};
+d.bind<std::string, &std::string::clear>(&str);
+
+d();
+assert(str.empty());
+```
+
+{{< figure
+  src="https://img.shields.io/badge/try-online-blue.svg"
+  alt="Try Online"
+  link="https://gcc.godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAM1QDsCBlZAQwBtMQBGAFlICsupVs1qhkAUgBMAISnTSAZ0ztkBPHUqZa6AMKpWAVwC2tEAGZeW9ABk8tTADljAI0zEQAdl4AHVAsLqtHqGJuY%2BfgF0tvZORq7uXorKmKqBDATMxATBxqYWSSpqdOmZBNGOLm6evAoZWTmh%2BbWl5bHx1QCUiqgGxMgcAORSZnbIhlgA1OJmOpgAHv3eRbTT2OIADACCw6PjmFMzLApKWasb21tjzMcT0szoACLJwMwEmDpsrBMgE94Gzqw8MgJrV0CAQPNFssph5ZFs/gCgSBzhNURNmAYiBMAO4IV4QDoTNC0WoTWioSGYJYTAC0qyJdFJyDxxAAVBNUAA3NzEPCTcSwlFo4XETAEXq0KaSGT3CZYdgvN5Ez5SSTTOGbYUCh7nbXq3VbN5GbzCJXTHQEACe3i0zCM%2BwYeGAtFevUwZ0uwhuTwVr3dZg15yNJr9Bwt1tt9omACVSBMrTaXfaAHSpzbEYAKD2bK7e55%2B83RiDpzOp5MdbMCjUIwHIZFbVEAekbEx0or9CnRkoMtGcPW0cvzbyFPswiswBIOD0HVAxrAI%2Bq2QubEwA6vtsSICPGEPtR%2BP46gJq4Gd5LcwAZg4/5aP0JoRO4DgAgCNjME6XyOhxPiaT9wXJAANg5Ahd2IQlpmnLBZwMedF01dFMSPVAbWIV4SEgiBf23f9hyAkCwMJOkzGwCZcPdfDIJnOcFwDA0EODU19kLCBWQAMR7VI6A6YsMwUMsKxIoUMSxZw7HQSdiNIzlUD5IUqyFVEjAAfTsZpb2Ysxp1oWDWCWYh4OFFTan%2BKcQQyNRkGUo5aJ0EznGUqhOOWVYIHEABWWR3IeLDGW3GS%2BVZOMS341NMkzIj6WjGENWFVFRXFYhJVYjjb2WHjwtC8tDLRbVBNimEdSXBt40wY0mLDBNI32HQvQUOMi1q64FHBVkAFkyviVKuNoHiQoEhkSVotYSpEo8xO0XyhtbOr2WQSKSImAL0BixSJhUtSMg0syJADCYV1qEh9lA/Zc07Xw7DeAySqU5T7LM5pLOs65bPsxznMCVyPK8nzsKW2T0HZbxgr4stMoW0jooUm60T%2Bsa5tYTsqMeoFntqc0/qa45WVc7x8vouKJgSiUJiwxGpPazq3G69KIEygSctRPKcr1YqGLKkMzRmKqkxquqGogLGWpASm4mpj7uN40tU0EkaELG49xMF2aiQh/6%2BVWmGNqGkQ7yo3bpH2ltDtFHdTrq35ZPoNw1uM8VnAeizUZs803qctLPpItzPI836/PVwHfhB6Xk3B2kos1hDhRXBhmCoK9jxSDElBxfYAGtyWxM3LcutwcWuY9%2BxWrFmDJOgaT%2BzbdfdGHUXholEZ2vy0dsoWca9lGrJdw5/bb3GOnxtnCeJpLSbGBQKY6sXiBpwIMtBmXGcKweENZi55aQjlUPQ4gCSlrKw7%2BqSY3kwUYbwKhSbt0zIKonTWD0ghwMjwnQOIVAs7uR5vw%2BB%2BFI8HUdEYZrxFGKEmrFr7OB4trdS/Q4z00XkA1eAD6LeF5JyP09Z16ogMDeYA5l/jvQ9nQMyRZWQ8T%2BstIKEx%2BqIMDCVShAN2QwK2nrLSZJdL6XVEbRs5oaE52tsQQ82cq7bQgBfe8255h4FqAoCsJU3YS0lJAsy99H4GT2k2ZsfDNQXUEcIk6Ex3Y9WEXYGSaca7bBQUg3UkgRi3j2GGWovJRCVi2JddazA7CTmhlHRCWJnGOzBCAZxdhgAKWlLuB%2BqBVR6hsTDBWK0qLkXNMtAkZxBTWIKqidAyYJroFdgQYJoTRBxikIBUE4ISmgBQOwTIX0gLOJXmtCSK9hTNTcAQCAzjkwcytASZpACBhdFYCAAY7kBikFMAMdYkzUBjJ0HIOQIIeh9GYnYzgkyCBjNmQPUgacQDuXWEIMZ3BJnTNmaQeZAxJktWOdsmZwzSBwFgEgeYKQkJkAoHTPiAAFEQygGAIA/tMzZpA0DGjwKaQI/z7CsCBSCnZkyIXeChVUYAnB1iSHBagSF7BiAAHlMQIuxBcyZ7zkAhTGeSuYKR0j4GmZMmg9AmBsA4DwfgghhCiBQEsmQQg8DOBapALoKFlgtQGDSAlZhaSgkghIGQcgeC3NWf0QQoI7CwsBcC0lYywXYjQt4PVTzRnjPOUiq5Yy5gAA5AI0kAtwCYwBkDAkxcmSQExsC0uQJ80muBCAkClGYTghJFmKpkFspFeyDlHJOQMM5UyLXXNuSAe5UaRljMkOax5lqbmkAebsro3JiD%2BA0NwIAA%3D%3D"
+>}}
+
+And it works! We have a type that we can bind free, member, and `const`-member
+functions to at compile-time!
+
+## Closing Remarks
+
+There we have it. Using a small amount of templates, we were able to build a
+small, light-weight utility for calling functions bound at compile-time.
+
+There is still much we can, and will do, to improve this design.
+
+Check out [part 2](/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2)
+to see how we can **support covariance**, and
+[part 3](/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3) to see
+this optimizes to have **zero-overhead**.
