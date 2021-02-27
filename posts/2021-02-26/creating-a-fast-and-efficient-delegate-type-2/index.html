@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.80.0" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="supported-color-schemes" content="light dark"><title>Creating a Fast and Efficient Delegate Type (Part 2)&nbsp;&ndash;&nbsp;Shifting Bits of Wisdom</title><link rel="stylesheet" href="/css/core.min.9d1ada802af58058e3d4d48eaac609df00fa5d8cc968d407476b2cee09f2e3b6296e5819f39453552b75bc2d2afc1011.css" integrity="sha384-nRragCr1gFjj1NSOqsYJ3wD6XYzJaNQHR2ss7gny47YpblgZ85RTVSt1vC0q/BAR"><body>
-    <div class="base-body"><section id="header" class="site header">
+<meta name="supported-color-schemes" content="light dark"><title>Creating a Fast and Efficient Delegate Type (Part 2)&nbsp;&ndash;&nbsp;Shifting Bits of Wisdom</title><link rel="stylesheet" href="/css/core.min.6db89d83f66808993b83bbfc11705fa3669f15d567e5376b90d3da490c726617e7c7ef452e2b21324fad3dcc54bbf791.css" integrity="sha384-bbidg/ZoCJk7g7v8EXBfo2afFdVn5TdrkNPaSQxyZhfnx&#43;9FLishMk&#43;tPcxUu/eR"><meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Creating a Fast and Efficient Delegate Type (Part 2)" /><body><header id="header">
     <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><span class="site name">Shifting Bits of Wisdom</span></a></span>
-        <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/categories/">Categories</a><a class="nav item" href="/tags/">Tags</a><a class="nav item" href="/glossary">Glossary</a><a class="nav item" href="/about">About</a></nav></div></span></div><div class="site slogan"><span class="title">A C++ template metaprogramming blog</span></div></section><div id="content"><div class="article-container"><section class="article header">
-    <h1 class="article title">Creating a Fast and Efficient Delegate Type (Part 2)</h1><p class="article date">2021-02-26</p></section><article class="article markdown-body"><p><strong>This is part 2 of a 3 part series.</strong></p>
-<p>In the <a href="/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type">previous post</a>,
+        <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/categories/">Categories</a><a class="nav item" href="/tags/">Tags</a><a class="nav item" href="/glossary">Glossary</a><a class="nav item" href="/about">About</a></nav></div></span></div><div class="site slogan"><span class="title">A C++ template metaprogramming blog</span></div></header>
+<section id="content"><div class="article-container"><header class="article header">
+    <h1 class="article title">Creating a Fast and Efficient Delegate Type (Part 2)</h1><p class="article date">
+            <time class="published"  title="2021-02-26 22:18:32 -0500 -0500" datetime="2021-02-26 22:18:32 -0500 -0500">February 26, 2021</time><time class="lastmod" title="2021-02-27 15:29:09 -0500 -0500" datetime="2021-02-27 15:29:09 -0500 -0500"> • edited February 27, 2021</time></p></header>
+<article class="article markdown-body"><p><strong>This is part 2 of a 3 part series.</strong></p>
+<p>In the <a href="/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type">previous post</a>
+,
 we saw how we could build a simple and light-weight <code>Delegate</code> type that binds
 free functions, and member functions. However we have a notable limitation that
 we require specifying the <em>type</em> of the members being bound
@@ -25,7 +29,8 @@ parameter that supports <em>any</em> function pointer signature that may be simi
 <code>auto</code> parameters are non-type parameters that use <code>auto</code>-deduction semantics.</p>
 <p>Lets try making this change. While we&rsquo;re at it, since we&rsquo;re using <code>c++17</code>, lets
 also update the function invocation to use
-<a href="https://en.cppreference.com/w/cpp/utility/functional/invoke"target="_blank"><code>std::invoke</code></a> in
+<a href="https://en.cppreference.com/w/cpp/utility/functional/invoke"target="_blank" rel="noopener noreferrer"><code>std::invoke</code></a>
+ in
 the process:</p>
 <div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp">  <span class="k">template</span> <span class="o">&lt;</span><span class="k">auto</span> <span class="n">Function</span><span class="o">&gt;</span>
   <span class="k">auto</span> <span class="n">bind</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kt">void</span>
@@ -48,7 +53,8 @@ the process:</p>
 parameters are unconstrained, meaning that you could realistically call
 <code>bind&lt;2&gt;()</code> and this will fail spectacularly with some horrible template error.
 However, we can easily fix this by just constraining the template&rsquo;s inputs by
-using <a href="https://en.cppreference.com/w/cpp/language/sfinae"target="_blank">SFINAE</a>:</p>
+using <a href="https://en.cppreference.com/w/cpp/language/sfinae"target="_blank" rel="noopener noreferrer">SFINAE</a>
+:</p>
 <div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp">  <span class="k">template</span> <span class="o">&lt;</span><span class="k">auto</span> <span class="n">Function</span><span class="p">,</span>
             <span class="k">typename</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">is_invocable_r_v</span><span class="o">&lt;</span><span class="n">R</span><span class="p">,</span> <span class="k">decltype</span><span class="p">(</span><span class="n">Function</span><span class="p">),</span><span class="n">Args</span><span class="p">...</span><span class="o">&gt;&gt;&gt;</span>
   <span class="k">auto</span> <span class="n">bind</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kt">void</span>
@@ -134,14 +140,27 @@ improve the user-experience by removing any redundant types from having to be
 specified &ndash; effectively making this utility even more useful!</p>
 <p>And yet, there still is more we can improve on. In the
 <a href="/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3">next post</a>
+
 I will cover optimizing this utility so that it has exactly <strong>0-overhead</strong>
 over using raw pointers.</p>
-</article><section class="article labels"><a class="category" href=/categories/intermediate-templates/>intermediate-templates</a><a class="category" href=/categories/tutorial/>tutorial</a><a class="tag" href=/tags/templates/>templates</a><a class="tag" href=/tags/delegate/>delegate</a><a class="tag" href=/tags/c&#43;&#43;17/>c&#43;&#43;17</a></section></div><section class="article navigation"><p><a class="link" href="/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3/"><span class="li">&larr;</span>Creating a Fast and Efficient Delegate Type (Part 3)</a></p><p><a class="link" href="/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type/"><span class="li">&rarr;</span>Creating a Fast and Efficient Delegate Type (Part 1)</a></p></section></div><section id="footer" class="footer"><div class="footer-wrap">
-    <p class="copyright">©2020 Matthew Rodusek.</p>
-    <p class="powerby"><span>Powered by </span><a href="https://gohugo.io" 
-        target="_blank">Hugo</a><span> and the </span><a href="https://themes.gohugo.io/hugo-notepadium/" 
-        target="_blank">Notepadium</a></p>
-</div></section></div>
-</body>
+</article><section class="article labels"><section class="article-categories-section">
+    <header class="article languages header" style="float:left;">
+      <h4 style="display:none;">Categories</h4>
+    </header><a class="category" href=/categories/intermediate-templates/>intermediate-templates</a><a class="category" href=/categories/tutorial/>tutorial</a><a class="category" href=/categories/c&#43;&#43;17/>c&#43;&#43;17</a></section><section class="article-tags-section">
+    <header class="article languages header" style="float:left;">
+      <h4 style="display:none;">Tags</h4>
+    </header><a class="tag" href=/tags/templates/>templates</a><a class="tag" href=/tags/delegate/>delegate</a></section></section>
+<aside class="article metadata"><div class="git-source-container"><p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/cd4ebfcfedec5d7d8de7510275f0ecf2af0664c1/content/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2.md">cd4ebfcfedec5d7d8de7510275f0ecf2af0664c1</a></p>
+  </div><div class="git-modified-container"><p class="last-modified-date"><b>Last modified:</b> <time title="2021-02-27 15:29:09 -0500 -0500" datetime="2021-02-27 15:29:09 -0500 -0500">February 27, 2021</time></p>
+  </div>
+</aside>
+</div>
+<div class="article bottom"><section class="article navigation"><p><a class="link" href="/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3/"><span class="iconfont icon-article"></span>Creating a Fast and Efficient Delegate Type (Part 3)</a></p><p><a class="link" href="/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type/"><span class="iconfont icon-article"></span>Creating a Fast and Efficient Delegate Type (Part 1)</a></p></section></div></section><footer id="footer"><div class="footer-wrap">
+    <p class="copyright">©2021 Matthew Rodusek.</p>
+    <p class="powerby"><span>Powered&nbsp;by&nbsp;</span><a href="https://gohugo.io"
+        target="_blank" rel="noopener noreferrer">Hugo</a><span>&nbsp;&amp;&nbsp;</span><a href="https://themes.gohugo.io/hugo-notepadium/"
+        target="_blank" rel="noopener noreferrer">Notepadium</a></p>
+</div>
+</footer></body>
 
 </html>
