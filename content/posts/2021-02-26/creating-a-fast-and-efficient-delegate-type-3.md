@@ -2,8 +2,8 @@
 title: "Creating a Fast and Efficient Delegate Type (Part 3)"
 date: 2021-02-26T22:19:51-05:00
 draft: false
-tags: [performance, optimizing, templates, delegate, c++17]
-categories: [intermediate-templates, tutorial]
+tags: [performance, optimizing, templates, delegate]
+categories: [intermediate-templates, tutorial, c++17]
 ---
 
 **This is part 3 of a 3 part series.**
