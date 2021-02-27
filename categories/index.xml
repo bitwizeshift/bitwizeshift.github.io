@@ -7,7 +7,7 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>©2020 Matthew Rodusek.</copyright>
-    <lastBuildDate>Wed, 24 Feb 2021 20:03:14 -0500</lastBuildDate>
+    <lastBuildDate>Fri, 26 Feb 2021 22:19:51 -0500</lastBuildDate>
     
         <atom:link href="/categories/index.xml" rel="self" type="application/rss+xml" />
     
@@ -15,7 +15,7 @@
     <item>
       <title>intermediate-templates</title>
       <link>/categories/intermediate-templates/</link>
-      <pubDate>Wed, 24 Feb 2021 20:03:14 -0500</pubDate>
+      <pubDate>Fri, 26 Feb 2021 22:19:51 -0500</pubDate>
       
       <guid>/categories/intermediate-templates/</guid>
       <description></description>
@@ -25,9 +25,19 @@
     <item>
       <title>tutorial</title>
       <link>/categories/tutorial/</link>
-      <pubDate>Wed, 24 Feb 2021 20:03:14 -0500</pubDate>
+      <pubDate>Fri, 26 Feb 2021 22:19:51 -0500</pubDate>
       
       <guid>/categories/tutorial/</guid>
+      <description></description>
+      
+    </item>
+    
+    <item>
+      <title>basic-templates</title>
+      <link>/categories/basic-templates/</link>
+      <pubDate>Wed, 24 Feb 2021 20:03:14 -0500</pubDate>
+      
+      <guid>/categories/basic-templates/</guid>
       <description></description>
       
     </item>
