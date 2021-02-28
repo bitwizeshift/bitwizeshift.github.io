@@ -7,7 +7,11 @@ categories: [basic-templates, tutorial, c++11, c++14]
 series: [delegate]
 ---
 
-**This is part 1 of a 3 part series.**
+{{<alert
+  type="info"
+  icon="info-circled"
+  message="**Note:** This is part 1 of a 3 part series."
+>}}
 
 When working in C++ systems, a frequent design pattern that presents itself is
 the need to bind and reuse functions in a type-erased way. Whether it's

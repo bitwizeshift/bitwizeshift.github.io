@@ -7,7 +7,11 @@ categories: [intermediate-templates, tutorial, c++17]
 series: [delegate]
 ---
 
-**This is part 2 of a 3 part series.**
+{{<alert
+  type="info"
+  icon="info-circled"
+  message="**Note:** This is part 2 of a 3 part series."
+>}}
 
 In the [previous post](/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type),
 we saw how we could build a simple and light-weight `Delegate` type that binds

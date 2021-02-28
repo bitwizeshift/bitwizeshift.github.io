@@ -7,7 +7,11 @@ categories: [intermediate-templates, tutorial, c++17]
 series: [delegate]
 ---
 
-**This is part 3 of a 3 part series.**
+{{<alert
+  type="info"
+  icon="info-circled"
+  message="**Note:** This is part 3 of a 3 part series."
+>}}
 
 In the [previous post](/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2)
 we updated our `Delegate` object that we've been working on since
