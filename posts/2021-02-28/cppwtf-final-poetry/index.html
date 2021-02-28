@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.80.0" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark"><title>C&#43;&#43;wtf: Final Poetry&nbsp;&ndash;&nbsp;Shifting Bits of Wisdom</title><link rel="stylesheet" href="/css/core.min.dccf03c743e5293a3dc44e05edebd281dedd84c3a5fd7e0a976b254784e27bdd0dd81c4171b62af104ea79bfde94d022.css" integrity="sha384-3M8Dx0PlKTo9xE4F7evSgd7dhMOl/X4Kl2slR4Tie90N2BxBcbYq8QTqeb/elNAi"><meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="C&#43;&#43;wtf: Final Poetry" /><body><header id="header">
+    <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><span class="site name">Shifting Bits of Wisdom</span></a></span>
+        <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/categories/">Categories</a><a class="nav item" href="/tags/">Tags</a><a class="nav item" href="/glossary">Glossary</a><a class="nav item" href="/about">About</a></nav></div></span></div><div class="site slogan"><span class="title">A C++ template metaprogramming blog</span></div></header>
+<section id="content"><main class="article-container">
+  <article class="article"><header class="article header">
+    <h1 class="article title">C++wtf: Final Poetry</h1><p class="article date">
+            <time class="published"  title="2021-02-28 01:23:18 -0500 -0500" datetime="2021-02-28 01:23:18 -0500 -0500">February 28, 2021</time></p></header>
+<section class="article markdown-body"><aside class="alert alert-info"><div class="icon">
+    <span class="iconfont icon-info-circled"></span>
+  </div><div class="message"><strong>Disclaimer:</strong> The C++WTF segment shines a light on the dark and
+esoteric corners of the C++ language for fun and profit</div></aside>
+
+<p>The C++ standards committee is very strongly against producing any kind of
+breaking changes when considering new language features &ndash; especially keywords.
+Over the course of standardization, this has lead to terms like <code>auto</code> being
+repurposed, or awkward keywords like <code>co_await</code> and <code>co_yield</code> being introduced
+in C++20 to avoid breaking a handful of projects in the world that might
+possibly be using <code>await</code> or <code>yield</code> in their vocabulary.</p>
+<p>A notable byproduct that comes from this is that some things we take for granted
+in every day modern C++ may not actually be <strong>keywords</strong> in the sense that you
+would expect. For example, both <code>final</code> and <code>override</code> are not actually keywords
+at all!</p>
+<p>These are <strong>context-sensitive specifiers</strong>, rather than official keywords. This
+means their meaning only applies when found in a very specific place, but
+otherwise allows for their names to be used in any other context &ndash; such as
+variable names and even type names!</p>
+<p>This allows for the following program to be completely syntactically
+valid, against all logical reason:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">struct</span> <span class="nc">final</span> <span class="k">final</span> <span class="p">{</span>
+  <span class="k">final</span><span class="p">();</span>
+  <span class="k">final</span><span class="p">(</span><span class="k">final</span><span class="o">&amp;&amp;</span><span class="p">)</span> <span class="o">:</span> <span class="k">final</span><span class="p">{}{}</span>
+<span class="p">}</span> <span class="k">final</span><span class="p">;</span>
+</code></pre></div><figure class="image-container"><span class="link" ><a href="https://gcc.godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAM1QDsCBlZAQwBtMQBGAFlICsupVs1qhkAUgBMAISnTSAZ0ztkBPHUqZa6AMKpWAVwC2tQVvQAZPLUwA5YwCNMxEAFZSAB1QLC62nsMTQS8fNTorG3sjJxd3JRUw2gYCZmICAONTTkVlTFU/ZNSCCLtHZ0EFFLSMoOzKopKomK4ASkVUA2JkDgBySuIDVQBqKms2EbHWIfEAdlkABgBBIYnaNggW8QBmBeXV9dG11ikANlOWoZB947nZgBFZ2RmHpfvr7d2ettYQHtce0imHrzAGoX46ORyIYKDpdTDTSRbTgAgi/EEtNoAazc8yEv24AKBINIYJ6AIUIFxqOBX1IcFgMEQKFQRg8eHYZAoEDQrPZ5WAnHmklIo1YBGcFIgDjRAIcY2IAE9fsjSDyjFoCAB5WisJU00hYIwiYDsGUGvDEPJqABumAp%2BswAA88gZxcqAdZxT99aw8A5iKkFXosGaCMQ8EZ3W0aPQmGwODx%2BIJhKIUJCZEI/RTIG1UB5Evbybl8hoIOYallSOZGmUXNkQr46BXgt5G7Qa9FynVi4lCtV9JkKj2ClVitZSp264pR826qOO81OG0YZ1uq08X9CWbSY6ABwnAC0J24Q2AyGQQ0FADpJEMILhCCQEUjSEM9LyOc%2Bl2/09IUTKMVIbFXFxb0CVISMQMBbdfnJSlSGpdE6UZCAkA6AgPFdchKB5NkOTMfAiCnGNGBYU1EwAdwDDwow3f5oP1UkpCRIYKMIBAhj3Q9j1Pc9L3mG9/xpQCEEwZgsBcDYN3AyDcSJUFYMUeDEK%2BLEcQ3LYt0YxSVMA71JC04lSSE9E2ltYgfA0bggA%3D%3D"
+        target="_blank"><img class="img" src="https://img.shields.io/badge/try-online-blue.svg"
+         alt="Try Online"/></a></span>
+</figure>
+
+<p>This creates a <code>final</code> type named <code>final</code> and also creates an object of said
+type which is <em>also</em> named <code>final</code>. This is C++&rsquo;s equivalent of the
+<a href="https://en.wikipedia.org/wiki/Buffalo_buffalo_Buffalo_buffalo_buffalo_buffalo_Buffalo_buffalo"target="_blank" rel="noopener noreferrer">buffalo buffalo sentence</a>
+
+or the <a href="https://en.wikipedia.org/wiki/Lion-Eating_Poet_in_the_Stone_Den"target="_blank" rel="noopener noreferrer">shi shi shi poem</a>
+,
+and I think that&rsquo;s <em>beautiful</em>. Of course, save this in the back of your mind as
+an esoteric fact about C++ &ndash; and don&rsquo;t spring this in any professional code, or
+you might have some very upset maintainers!</p>
+</section><footer class="article footer"><section class="article labels"><section class="article-tags-section">
+    <header class="article languages header" style="float:left;">
+      <h4 style="display:none;">Tags</h4>
+    </header><a class="tag" href=/tags/esoteric/>esoteric</a><a class="tag" href=/tags/language-lawyer/>language-lawyer</a></section></section>
+<aside class="article metadata"><div class="git-source-container visible-on-wide-devices">
+    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/76833fcc491c108dc95ed8db57d38ccc78060fe2/content/posts/2021-02-28/cppwtf-final-poetry.md">76833fcc491c108dc95ed8db57d38ccc78060fe2</a></p>
+  </div>
+  <div class="git-source-container visible-on-small-devices">
+    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/76833fcc491c108dc95ed8db57d38ccc78060fe2/content/posts/2021-02-28/cppwtf-final-poetry.md">76833fc</a></p>
+  </div><div class="git-modified-container"><p class="last-modified-date"><b>Last modified:</b> <time title="2021-02-28 14:06:26 -0500 -0500" datetime="2021-02-28 14:06:26 -0500 -0500">February 28, 2021</time></p>
+  </div></aside>
+</footer>
+</article>
+</main><div class="article bottom"><section class="article bottom-navigation"><section class="previous-and-next"><section class="previous-article"><div class="visible-on-wide-devices"><p><b><span class="iconfont icon-previous"></span> Previous</b></p></div>
+      <div class="visible-on-small-devices"><p><b>Previous</b></p></div>
+      <div class="previous-article-link">
+        <p><a class="link" href="/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3/"><span class="iconfont icon-article"></span>Creating a Fast and Efficient Delegate Type (Part 3)</a></p>
+      </div></section></section>
+</section></div></section><footer id="footer"><div class="footer-wrap">
+    <p class="copyright">©2021 Matthew Rodusek.</p>
+    <p class="powerby"><span>Powered&nbsp;by&nbsp;</span><a href="https://gohugo.io"
+        target="_blank" rel="noopener noreferrer">Hugo</a><span>&nbsp;&amp;&nbsp;</span><a href="https://themes.gohugo.io/hugo-notepadium/"
+        target="_blank" rel="noopener noreferrer">Notepadium</a></p>
+</div>
+</footer></body>
+
+</html>
