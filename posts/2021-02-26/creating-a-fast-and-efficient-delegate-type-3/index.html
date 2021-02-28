@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.80.0" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="supported-color-schemes" content="light dark"><title>Creating a Fast and Efficient Delegate Type (Part 3)&nbsp;&ndash;&nbsp;Shifting Bits of Wisdom</title><link rel="stylesheet" href="/css/core.min.6db89d83f66808993b83bbfc11705fa3669f15d567e5376b90d3da490c726617e7c7ef452e2b21324fad3dcc54bbf791.css" integrity="sha384-bbidg/ZoCJk7g7v8EXBfo2afFdVn5TdrkNPaSQxyZhfnx&#43;9FLishMk&#43;tPcxUu/eR"><meta name="twitter:card" content="summary" />
+<meta name="supported-color-schemes" content="light dark"><title>Creating a Fast and Efficient Delegate Type (Part 3)&nbsp;&ndash;&nbsp;Shifting Bits of Wisdom</title><link rel="stylesheet" href="/css/core.min.1ec6cc13d36ee1ebdda1cc7d8de3559179c62cfacd044e4a4b2f9f9c75694bc3933d6951b0cb9c44a9064a9a626d90a8.css" integrity="sha384-HsbME9Nu4evdocx9jeNVkXnGLPrNBE5KSy&#43;fnHVpS8OTPWlRsMucRKkGSppibZCo"><meta name="twitter:card" content="summary" />
 <meta name="twitter:title" content="Creating a Fast and Efficient Delegate Type (Part 3)" /><body><header id="header">
     <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><span class="site name">Shifting Bits of Wisdom</span></a></span>
         <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/categories/">Categories</a><a class="nav item" href="/tags/">Tags</a><a class="nav item" href="/glossary">Glossary</a><a class="nav item" href="/about">About</a></nav></div></span></div><div class="site slogan"><span class="title">A C++ template metaprogramming blog</span></div></header>
-<section id="content"><div class="article-container"><header class="article header">
+<section id="content"><div class="article-container">
+  <article class="article"><header class="article header">
     <h1 class="article title">Creating a Fast and Efficient Delegate Type (Part 3)</h1><p class="article date">
-            <time class="published"  title="2021-02-26 22:19:51 -0500 -0500" datetime="2021-02-26 22:19:51 -0500 -0500">February 26, 2021</time><time class="lastmod" title="2021-02-27 15:29:09 -0500 -0500" datetime="2021-02-27 15:29:09 -0500 -0500"> • edited February 27, 2021</time></p></header>
-<article class="article markdown-body"><p><strong>This is part 3 of a 3 part series.</strong></p>
+            <time class="published"  title="2021-02-26 22:19:51 -0500 -0500" datetime="2021-02-26 22:19:51 -0500 -0500">February 26, 2021</time><time class="lastmod" title="2021-02-28 01:05:16 -0500 -0500" datetime="2021-02-28 01:05:16 -0500 -0500"> • edited February 28, 2021</time></p></header>
+<section class="article markdown-body"><p><strong>This is part 3 of a 3 part series.</strong></p>
 <p>In the <a href="/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2">previous post</a>
 
 we updated our <code>Delegate</code> object that we&rsquo;ve been working on since
@@ -235,19 +236,33 @@ non-capturing lambdas)</li>
 <li>Factory functions to produce lambdas and deduce the return type</li>
 </ul>
 <p>These suggestions are left as an exercise to the reader.</p>
-</article><section class="article labels"><section class="article-categories-section">
+</section><section class="article labels"><section class="article-categories-section">
     <header class="article languages header" style="float:left;">
       <h4 style="display:none;">Categories</h4>
     </header><a class="category" href=/categories/intermediate-templates/>intermediate-templates</a><a class="category" href=/categories/tutorial/>tutorial</a><a class="category" href=/categories/c&#43;&#43;17/>c&#43;&#43;17</a></section><section class="article-tags-section">
     <header class="article languages header" style="float:left;">
       <h4 style="display:none;">Tags</h4>
-    </header><a class="tag" href=/tags/performance/>performance</a><a class="tag" href=/tags/optimizing/>optimizing</a><a class="tag" href=/tags/templates/>templates</a><a class="tag" href=/tags/delegate/>delegate</a></section></section>
-<aside class="article metadata"><div class="git-source-container"><p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/cd4ebfcfedec5d7d8de7510275f0ecf2af0664c1/content/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3.md">cd4ebfcfedec5d7d8de7510275f0ecf2af0664c1</a></p>
-  </div><div class="git-modified-container"><p class="last-modified-date"><b>Last modified:</b> <time title="2021-02-27 15:29:09 -0500 -0500" datetime="2021-02-27 15:29:09 -0500 -0500">February 27, 2021</time></p>
+    </header><a class="tag" href=/tags/performance/>performance</a><a class="tag" href=/tags/optimizing/>optimizing</a><a class="tag" href=/tags/templates/>templates</a></section></section>
+<aside class="article metadata"><div class="git-source-container visible-on-wide-devices">
+    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/5aed1262511a7e3ace5f09a899deb0e271367482/content/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3.md">5aed1262511a7e3ace5f09a899deb0e271367482</a></p>
+  </div>
+  <div class="git-source-container visible-on-small-devices">
+    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/5aed1262511a7e3ace5f09a899deb0e271367482/content/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3.md">5aed126</a></p>
+  </div><div class="git-modified-container"><p class="last-modified-date"><b>Last modified:</b> <time title="2021-02-28 01:05:16 -0500 -0500" datetime="2021-02-28 01:05:16 -0500 -0500">February 28, 2021</time></p>
   </div>
 </aside>
+</article>
 </div>
-<div class="article bottom"><section class="article navigation"><p><a class="link" href="/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2/"><span class="iconfont icon-article"></span>Creating a Fast and Efficient Delegate Type (Part 2)</a></p></section></div></section><footer id="footer"><div class="footer-wrap">
+<div class="article bottom"><section class="article bottom-navigation"><section class="related-articles">
+    <p><b>Other Posts in this Series</b></p>
+    <ol><li><a href="https://bitwizeshift.github.io/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type/"><span class="iconfont icon-article"></span>Creating a Fast and Efficient Delegate Type (Part 1)</a></li><li><a href="https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2/"><span class="iconfont icon-article"></span>Creating a Fast and Efficient Delegate Type (Part 2)</a></li>
+        <li><span class="iconfont icon-article"></span>Creating a Fast and Efficient Delegate Type (Part 3)</li></ol>
+</section><section class="previous-and-next"><section class="previous-article"><div class="visible-on-wide-devices"><p><b><span class="iconfont icon-pagepreview"></span> Previous</b></p></div>
+      <div class="visible-on-small-devices"><p><b>Previous</b></p></div>
+      <div class="previous-article-link">
+        <p><a class="link" href="/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2/"><span class="iconfont icon-article"></span>Creating a Fast and Efficient Delegate Type (Part 2)</a></p>
+      </div></section></section>
+</section></div></section><footer id="footer"><div class="footer-wrap">
     <p class="copyright">©2021 Matthew Rodusek.</p>
     <p class="powerby"><span>Powered&nbsp;by&nbsp;</span><a href="https://gohugo.io"
         target="_blank" rel="noopener noreferrer">Hugo</a><span>&nbsp;&amp;&nbsp;</span><a href="https://themes.gohugo.io/hugo-notepadium/"
