@@ -5,6 +5,12 @@ draft: false
 tags: [performance, optimizing, templates]
 categories: [intermediate-templates, tutorial, c++17]
 series: [delegate]
+summary: "
+In the previous post we reworked our `Delegate` object into something more
+modern and easy-to-use by using `c++17` -- but is this utility zero-overhead?
+In this post we will look at how to optimize this into a true zero-overhead
+utility.
+"
 ---
 
 {{<alert

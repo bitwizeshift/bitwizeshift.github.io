@@ -5,6 +5,13 @@ draft: false
 tags: [templates]
 categories: [basic-templates, tutorial, c++11, c++14]
 series: [delegate]
+summary: "It's often desirable when working in C++ to create callbacks that
+never leave a certain lifetime, and only bind functions or function pointers.
+The C++ standard only offers `std::function` and `std::packaged_task`, both of
+which are more heavy than they need to be.
+
+We can do better. Lets produce a better alternative to the existing solutions
+that could satisfy this problem in a nice and coherent way."
 ---
 
 {{<alert
