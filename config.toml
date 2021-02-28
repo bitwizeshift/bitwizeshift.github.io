@@ -10,6 +10,11 @@ enableGitInfo = true
 # Enable Disqus
 # disqusShortname = "XXX"
 
+[taxonomies]
+  category = "categories"
+  series = "series"
+  tag = "tags"
+
 [markup.highlight]
 codeFences = true
 noClasses = false
