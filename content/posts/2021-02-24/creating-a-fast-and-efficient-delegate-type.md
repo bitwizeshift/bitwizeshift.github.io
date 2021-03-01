@@ -42,6 +42,8 @@ above suggested cases.
 We can do better. Lets set out to produce a better alternative to the existing
 solutions that could satisfy this problem in a nice and coherent way.
 
+{{<table-of-contents>}}
+
 ## Goal
 
 To create a fast, light-weight alternative to `std::function` that
@@ -185,7 +187,7 @@ function to be marked `static` so that it's not actually a member function of
 the class (which would create a pointer-to-member-function, which is not the
 same as a function pointer).
 
-So lets do this by making a `static` function template, that wil simply
+So lets do this by making a `static` function template, that will simply
 invoke the bound function pointer with the specified arguments:
 
 ```cpp

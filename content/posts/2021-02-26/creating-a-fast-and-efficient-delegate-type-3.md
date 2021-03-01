@@ -25,6 +25,8 @@ to support covariance.
 
 In this post, we will look at how to make this a true **zero-overhead** utility
 
+{{<table-of-contents>}}
+
 ## Goal
 
 To ensure this `Delegate` has exactly **zero-overhead**.
@@ -228,7 +230,7 @@ overhead.
 
 Is there any way that we could potentially address this?
 
-## Iteration: Optimizing our `Delegate`
+## Optimizing our `Delegate`
 
 Since we are only benchmarking the time for `operator()` and not the time for
 binding, that means the source of the time difference may be due to something

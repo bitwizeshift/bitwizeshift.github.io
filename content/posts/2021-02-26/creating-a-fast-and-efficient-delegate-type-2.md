@@ -26,6 +26,7 @@ only the _exact_ type. We can't bind anything that is *covariant* to it.
 
 Lets improve upon that.
 
+{{<table-of-contents>}}
 
 ## Goal
 
