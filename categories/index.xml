@@ -17,10 +17,13 @@
       <pubDate>Sun, 28 Feb 2021 01:23:18 -0500</pubDate>
       
       <guid>https://bitwizeshift.github.io/posts/2021-02-28/cppwtf-final-poetry/</guid>
-      <description>&lt;aside class=&#34;alert alert-info&#34;&gt;&lt;div class=&#34;icon&#34;&gt;
+      <description>&lt;aside class=&#34;alert alert-info&#34;&gt;
+  &lt;div class=&#34;icon&#34;&gt;
     &lt;span class=&#34;iconfont icon-info-circled&#34;&gt;&lt;/span&gt;
-  &lt;/div&gt;&lt;div class=&#34;message&#34;&gt;&lt;strong&gt;Disclaimer:&lt;/strong&gt; The C++WTF segment shines a light on the dark and
-esoteric corners of the C++ language for fun and profit&lt;/div&gt;&lt;/aside&gt;
+  &lt;/div&gt;
+  &lt;div class=&#34;message&#34;&gt;&lt;strong&gt;Disclaimer:&lt;/strong&gt; The C++WTF segment shines a light on the dark and
+esoteric corners of the C++ language for fun and profit&lt;/div&gt;
+&lt;/aside&gt;
 
 &lt;p&gt;The C++ standards committee is very strongly against producing any kind of
 breaking changes when considering new language features &amp;ndash; especially keywords.
@@ -33,9 +36,9 @@ in every day modern C++ may not actually be &lt;strong&gt;keywords&lt;/strong&gt
 would expect. For example, both &lt;code&gt;final&lt;/code&gt; and &lt;code&gt;override&lt;/code&gt; are not actually keywords
 at all!&lt;/p&gt;
 &lt;p&gt;These are &lt;strong&gt;context-sensitive specifiers&lt;/strong&gt;, rather than official keywords. This
-means their meaning only applies when found in a very specific place, but
-otherwise allows for their names to be used in any other context &amp;ndash; such as
-variable names and even type names!&lt;/p&gt;
+means that their functionality only applies when found in a very specific place,
+but otherwise allows for their names to be used in any other context &amp;ndash; such as
+variable names, function names, and even type names!&lt;/p&gt;
 &lt;p&gt;This allows for the following program to be completely syntactically
 valid, against all logical reason:&lt;/p&gt;
 &lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;struct&lt;/span&gt; &lt;span class=&#34;nc&#34;&gt;final&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;final&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
@@ -65,9 +68,12 @@ you might have some very upset maintainers!&lt;/p&gt;
       <pubDate>Fri, 26 Feb 2021 22:19:51 -0500</pubDate>
       
       <guid>https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3/</guid>
-      <description>&lt;aside class=&#34;alert alert-info&#34;&gt;&lt;div class=&#34;icon&#34;&gt;
+      <description>&lt;aside class=&#34;alert alert-info&#34;&gt;
+  &lt;div class=&#34;icon&#34;&gt;
     &lt;span class=&#34;iconfont icon-info-circled&#34;&gt;&lt;/span&gt;
-  &lt;/div&gt;&lt;div class=&#34;message&#34;&gt;&lt;strong&gt;Note:&lt;/strong&gt; This is part 3 of a 3 part series.&lt;/div&gt;&lt;/aside&gt;
+  &lt;/div&gt;
+  &lt;div class=&#34;message&#34;&gt;&lt;strong&gt;Note:&lt;/strong&gt; This is part 3 of a 3 part series.&lt;/div&gt;
+&lt;/aside&gt;
 
 &lt;p&gt;In the &lt;a href=&#34;https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2&#34;&gt;previous post&lt;/a&gt;
 
@@ -308,9 +314,12 @@ non-capturing lambdas)&lt;/li&gt;
       <pubDate>Fri, 26 Feb 2021 22:18:32 -0500</pubDate>
       
       <guid>https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2/</guid>
-      <description>&lt;aside class=&#34;alert alert-info&#34;&gt;&lt;div class=&#34;icon&#34;&gt;
+      <description>&lt;aside class=&#34;alert alert-info&#34;&gt;
+  &lt;div class=&#34;icon&#34;&gt;
     &lt;span class=&#34;iconfont icon-info-circled&#34;&gt;&lt;/span&gt;
-  &lt;/div&gt;&lt;div class=&#34;message&#34;&gt;&lt;strong&gt;Note:&lt;/strong&gt; This is part 2 of a 3 part series.&lt;/div&gt;&lt;/aside&gt;
+  &lt;/div&gt;
+  &lt;div class=&#34;message&#34;&gt;&lt;strong&gt;Note:&lt;/strong&gt; This is part 2 of a 3 part series.&lt;/div&gt;
+&lt;/aside&gt;
 
 &lt;p&gt;In the &lt;a href=&#34;https://bitwizeshift.github.io/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type&#34;&gt;previous post&lt;/a&gt;
 ,
@@ -459,9 +468,12 @@ over using raw pointers.&lt;/p&gt;
       <pubDate>Wed, 24 Feb 2021 20:03:14 -0500</pubDate>
       
       <guid>https://bitwizeshift.github.io/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type/</guid>
-      <description>&lt;aside class=&#34;alert alert-info&#34;&gt;&lt;div class=&#34;icon&#34;&gt;
+      <description>&lt;aside class=&#34;alert alert-info&#34;&gt;
+  &lt;div class=&#34;icon&#34;&gt;
     &lt;span class=&#34;iconfont icon-info-circled&#34;&gt;&lt;/span&gt;
-  &lt;/div&gt;&lt;div class=&#34;message&#34;&gt;&lt;strong&gt;Note:&lt;/strong&gt; This is part 1 of a 3 part series.&lt;/div&gt;&lt;/aside&gt;
+  &lt;/div&gt;
+  &lt;div class=&#34;message&#34;&gt;&lt;strong&gt;Note:&lt;/strong&gt; This is part 1 of a 3 part series.&lt;/div&gt;
+&lt;/aside&gt;
 
 &lt;p&gt;When working in C++ systems, a frequent design pattern that presents itself is
 the need to bind and reuse functions in a type-erased way. Whether it&amp;rsquo;s
