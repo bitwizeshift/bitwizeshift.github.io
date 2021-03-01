@@ -82,6 +82,31 @@ we updated our &lt;code&gt;Delegate&lt;/code&gt; object that we&amp;rsquo;ve bee
 
 to support covariance.&lt;/p&gt;
 &lt;p&gt;In this post, we will look at how to make this a true &lt;strong&gt;zero-overhead&lt;/strong&gt; utility&lt;/p&gt;
+&lt;aside class=&#34;table-of-contents&#34;&gt;
+  &lt;header class=&#34;table-of-contents navigation-header&#34;&gt;
+    &lt;h2&gt;Table of Contents&lt;/h2&gt;
+  &lt;/header&gt;
+  &lt;nav id=&#34;TableOfContents&#34;&gt;
+  &lt;ul&gt;
+    &lt;li&gt;&lt;a href=&#34;#goal&#34;&gt;Goal&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#testing-for-zero-overhead&#34;&gt;Testing for zero overhead&lt;/a&gt;
+      &lt;ul&gt;
+        &lt;li&gt;&lt;a href=&#34;#binding-functions-with-move-only-parameters&#34;&gt;Binding functions with move-only parameters&lt;/a&gt;&lt;/li&gt;
+        &lt;li&gt;&lt;a href=&#34;#invoking-functions-with-move-only-parameters&#34;&gt;Invoking functions with move-only parameters&lt;/a&gt;&lt;/li&gt;
+        &lt;li&gt;&lt;a href=&#34;#benchmarking&#34;&gt;Benchmarking&lt;/a&gt;&lt;/li&gt;
+        &lt;li&gt;&lt;a href=&#34;#the-benchmark&#34;&gt;The Benchmark&lt;/a&gt;&lt;/li&gt;
+      &lt;/ul&gt;
+    &lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#optimizing-our-delegate&#34;&gt;Optimizing our &lt;code&gt;Delegate&lt;/code&gt;&lt;/a&gt;
+      &lt;ul&gt;
+        &lt;li&gt;&lt;a href=&#34;#benchmarking-again&#34;&gt;Benchmarking Again&lt;/a&gt;&lt;/li&gt;
+      &lt;/ul&gt;
+    &lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#closing-thoughts&#34;&gt;Closing Thoughts&lt;/a&gt;&lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/nav&gt;
+&lt;/aside&gt;
+
 &lt;h2 id=&#34;goal&#34;&gt;Goal&lt;/h2&gt;
 &lt;p&gt;To ensure this &lt;code&gt;Delegate&lt;/code&gt; has exactly &lt;strong&gt;zero-overhead&lt;/strong&gt;.
 In particular, lets make sure that this &lt;code&gt;Delegate&lt;/code&gt; is exactly as lightweight to
@@ -236,7 +261,7 @@ does not get elided.&lt;/p&gt;
 a raw function pointer does. This appears to be a consistent, though tiny,
 overhead.&lt;/p&gt;
 &lt;p&gt;Is there any way that we could potentially address this?&lt;/p&gt;
-&lt;h2 id=&#34;iteration-optimizing-our-delegate&#34;&gt;Iteration: Optimizing our &lt;code&gt;Delegate&lt;/code&gt;&lt;/h2&gt;
+&lt;h2 id=&#34;optimizing-our-delegate&#34;&gt;Optimizing our &lt;code&gt;Delegate&lt;/code&gt;&lt;/h2&gt;
 &lt;p&gt;Since we are only benchmarking the time for &lt;code&gt;operator()&lt;/code&gt; and not the time for
 binding, that means the source of the time difference may be due to something
 in that function.&lt;/p&gt;
@@ -329,6 +354,25 @@ we require specifying the &lt;em&gt;type&lt;/em&gt; of the members being bound
 (e.g. &lt;code&gt;d.bind&amp;lt;Foo,&amp;amp;Foo::do_something&amp;gt;()&lt;/code&gt;). Additionally, we&amp;rsquo;re forced to bind
 only the &lt;em&gt;exact&lt;/em&gt; type. We can&amp;rsquo;t bind anything that is &lt;em&gt;covariant&lt;/em&gt; to it.&lt;/p&gt;
 &lt;p&gt;Lets improve upon that.&lt;/p&gt;
+&lt;aside class=&#34;table-of-contents&#34;&gt;
+  &lt;header class=&#34;table-of-contents navigation-header&#34;&gt;
+    &lt;h2&gt;Table of Contents&lt;/h2&gt;
+  &lt;/header&gt;
+  &lt;nav id=&#34;TableOfContents&#34;&gt;
+  &lt;ul&gt;
+    &lt;li&gt;&lt;a href=&#34;#goal&#34;&gt;Goal&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#supporting-covariance&#34;&gt;Supporting Covariance&lt;/a&gt;
+      &lt;ul&gt;
+        &lt;li&gt;&lt;a href=&#34;#reworking-free-function-binding&#34;&gt;Reworking Free-Function Binding&lt;/a&gt;&lt;/li&gt;
+        &lt;li&gt;&lt;a href=&#34;#reworking-const-member-functions&#34;&gt;Reworking Const Member Functions&lt;/a&gt;&lt;/li&gt;
+        &lt;li&gt;&lt;a href=&#34;#reworking-member-functions&#34;&gt;Reworking Member Functions&lt;/a&gt;&lt;/li&gt;
+      &lt;/ul&gt;
+    &lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#closing-remarks&#34;&gt;Closing Remarks&lt;/a&gt;&lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/nav&gt;
+&lt;/aside&gt;
+
 &lt;h2 id=&#34;goal&#34;&gt;Goal&lt;/h2&gt;
 &lt;p&gt;To improve upon our initial &lt;code&gt;Delegate&lt;/code&gt; implementation from the previous post.&lt;/p&gt;
 &lt;p&gt;In particular, we will support both covariant functions and improve upon the
@@ -498,6 +542,28 @@ characteristics, and neither of these are guaranteed to be optimized for the
 above suggested cases.&lt;/p&gt;
 &lt;p&gt;We can do better. Lets set out to produce a better alternative to the existing
 solutions that could satisfy this problem in a nice and coherent way.&lt;/p&gt;
+&lt;aside class=&#34;table-of-contents&#34;&gt;
+  &lt;header class=&#34;table-of-contents navigation-header&#34;&gt;
+    &lt;h2&gt;Table of Contents&lt;/h2&gt;
+  &lt;/header&gt;
+  &lt;nav id=&#34;TableOfContents&#34;&gt;
+  &lt;ul&gt;
+    &lt;li&gt;&lt;a href=&#34;#goal&#34;&gt;Goal&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#basic-structure&#34;&gt;Basic Structure&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#invoking-the-delegate&#34;&gt;Invoking the &lt;code&gt;Delegate&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#generating-stubs&#34;&gt;Generating Stubs&lt;/a&gt;
+      &lt;ul&gt;
+        &lt;li&gt;&lt;a href=&#34;#function-stubs&#34;&gt;Function stubs&lt;/a&gt;&lt;/li&gt;
+        &lt;li&gt;&lt;a href=&#34;#member-function-stubs&#34;&gt;Member Function Stubs&lt;/a&gt;&lt;/li&gt;
+        &lt;li&gt;&lt;a href=&#34;#binding-const-member-functions&#34;&gt;Binding const member functions&lt;/a&gt;&lt;/li&gt;
+        &lt;li&gt;&lt;a href=&#34;#binding-non-const-member-functions&#34;&gt;Binding non-&lt;code&gt;const&lt;/code&gt; member functions&lt;/a&gt;&lt;/li&gt;
+      &lt;/ul&gt;
+    &lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#closing-remarks&#34;&gt;Closing Remarks&lt;/a&gt;&lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/nav&gt;
+&lt;/aside&gt;
+
 &lt;h2 id=&#34;goal&#34;&gt;Goal&lt;/h2&gt;
 &lt;p&gt;To create a fast, light-weight alternative to &lt;code&gt;std::function&lt;/code&gt; that
 operates on non-owning references. For our purposes, we will name this type
@@ -610,7 +676,7 @@ argument.&lt;/p&gt;
 function to be marked &lt;code&gt;static&lt;/code&gt; so that it&amp;rsquo;s not actually a member function of
 the class (which would create a pointer-to-member-function, which is not the
 same as a function pointer).&lt;/p&gt;
-&lt;p&gt;So lets do this by making a &lt;code&gt;static&lt;/code&gt; function template, that wil simply
+&lt;p&gt;So lets do this by making a &lt;code&gt;static&lt;/code&gt; function template, that will simply
 invoke the bound function pointer with the specified arguments:&lt;/p&gt;
 &lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;typename&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;R&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;typename&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Args&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
 &lt;span class=&#34;k&#34;&gt;class&lt;/span&gt; &lt;span class=&#34;nc&#34;&gt;Delegate&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;R&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Args&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;...)&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.80.0" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="supported-color-schemes" content="light dark"><title>Creating a Fast and Efficient Delegate Type (Part 3)&nbsp;&ndash;&nbsp;Shifting Bits of Wisdom</title><link rel="stylesheet" href="/css/core.min.46b8bc18b2fea755df7c84d69d31e5b5c8c99a94d0585ef073c95d521127039cc050c979225177b4eb715fba28b53b27.css" integrity="sha384-Rri8GLL&#43;p1XffITWnTHltcjJmpTQWF7wc8ldUhEnA5zAUMl5IlF3tOtxX7ootTsn"><meta name="twitter:card" content="summary" />
+<meta name="supported-color-schemes" content="light dark"><title>Creating a Fast and Efficient Delegate Type (Part 3)&nbsp;&ndash;&nbsp;Shifting Bits of Wisdom</title><link rel="stylesheet" href="/css/core.min.3d55da36959213b60e9ed94f4a64d78f56ad54fdd93408f9eadaa4c4ca93d9f5aafdf11d5b6984bd140204bf12d51884.css" integrity="sha384-PVXaNpWSE7YOntlPSmTXj1atVP3ZNAj56tqkxMqT2fWq/fEdW2mEvRQCBL8S1RiE"><meta name="twitter:card" content="summary" />
 <meta name="twitter:title" content="Creating a Fast and Efficient Delegate Type (Part 3)" /><body><header id="header">
     <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><span class="site name">Shifting Bits of Wisdom</span></a></span>
         <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/categories/">Categories</a><a class="nav item" href="/tags/">Tags</a><a class="nav item" href="/glossary">Glossary</a><a class="nav item" href="/about">About</a></nav></div></span></div><div class="site slogan"><span class="title">A C++ template metaprogramming blog</span></div></header>
@@ -23,6 +23,31 @@ we updated our <code>Delegate</code> object that we&rsquo;ve been working on sin
 
 to support covariance.</p>
 <p>In this post, we will look at how to make this a true <strong>zero-overhead</strong> utility</p>
+<aside class="table-of-contents">
+  <header class="table-of-contents navigation-header">
+    <h2>Table of Contents</h2>
+  </header>
+  <nav id="TableOfContents">
+  <ul>
+    <li><a href="#goal">Goal</a></li>
+    <li><a href="#testing-for-zero-overhead">Testing for zero overhead</a>
+      <ul>
+        <li><a href="#binding-functions-with-move-only-parameters">Binding functions with move-only parameters</a></li>
+        <li><a href="#invoking-functions-with-move-only-parameters">Invoking functions with move-only parameters</a></li>
+        <li><a href="#benchmarking">Benchmarking</a></li>
+        <li><a href="#the-benchmark">The Benchmark</a></li>
+      </ul>
+    </li>
+    <li><a href="#optimizing-our-delegate">Optimizing our <code>Delegate</code></a>
+      <ul>
+        <li><a href="#benchmarking-again">Benchmarking Again</a></li>
+      </ul>
+    </li>
+    <li><a href="#closing-thoughts">Closing Thoughts</a></li>
+  </ul>
+</nav>
+</aside>
+
 <h2 id="goal">Goal</h2>
 <p>To ensure this <code>Delegate</code> has exactly <strong>zero-overhead</strong>.
 In particular, lets make sure that this <code>Delegate</code> is exactly as lightweight to
@@ -177,7 +202,7 @@ does not get elided.</p>
 a raw function pointer does. This appears to be a consistent, though tiny,
 overhead.</p>
 <p>Is there any way that we could potentially address this?</p>
-<h2 id="iteration-optimizing-our-delegate">Iteration: Optimizing our <code>Delegate</code></h2>
+<h2 id="optimizing-our-delegate">Optimizing our <code>Delegate</code></h2>
 <p>Since we are only benchmarking the time for <code>operator()</code> and not the time for
 binding, that means the source of the time difference may be due to something
 in that function.</p>
@@ -254,11 +279,11 @@ non-capturing lambdas)</li>
       <h4 style="display:none;">Tags</h4>
     </header><a class="tag" href=/tags/performance/>performance</a><a class="tag" href=/tags/optimizing/>optimizing</a><a class="tag" href=/tags/templates/>templates</a></section></section>
 <aside class="article metadata"><div class="git-source-container visible-on-wide-devices">
-    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/2b3c9e5b97a9d87f64bb419540402fe6a139b9ac/content/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3.md">2b3c9e5b97a9d87f64bb419540402fe6a139b9ac</a></p>
+    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/9c499726238a1f53b5736d7f4cca5e766cbe621f/content/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3.md">9c499726238a1f53b5736d7f4cca5e766cbe621f</a></p>
   </div>
   <div class="git-source-container visible-on-small-devices">
-    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/2b3c9e5b97a9d87f64bb419540402fe6a139b9ac/content/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3.md">2b3c9e5</a></p>
-  </div><div class="git-modified-container"><p class="last-modified-date"><b>Last modified:</b> <time title="2021-02-28 19:04:33 -0500 -0500" datetime="2021-02-28 19:04:33 -0500 -0500">February 28, 2021</time></p>
+    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/9c499726238a1f53b5736d7f4cca5e766cbe621f/content/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3.md">9c49972</a></p>
+  </div><div class="git-modified-container"><p class="last-modified-date"><b>Last modified:</b> <time title="2021-02-28 19:41:42 -0500 -0500" datetime="2021-02-28 19:41:42 -0500 -0500">February 28, 2021</time></p>
   </div></aside>
 </footer>
 </article>

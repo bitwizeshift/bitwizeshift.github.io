@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.80.0" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="supported-color-schemes" content="light dark"><title>Creating a Fast and Efficient Delegate Type (Part 1)&nbsp;&ndash;&nbsp;Shifting Bits of Wisdom</title><link rel="stylesheet" href="/css/core.min.46b8bc18b2fea755df7c84d69d31e5b5c8c99a94d0585ef073c95d521127039cc050c979225177b4eb715fba28b53b27.css" integrity="sha384-Rri8GLL&#43;p1XffITWnTHltcjJmpTQWF7wc8ldUhEnA5zAUMl5IlF3tOtxX7ootTsn"><meta name="twitter:card" content="summary" />
+<meta name="supported-color-schemes" content="light dark"><title>Creating a Fast and Efficient Delegate Type (Part 1)&nbsp;&ndash;&nbsp;Shifting Bits of Wisdom</title><link rel="stylesheet" href="/css/core.min.3d55da36959213b60e9ed94f4a64d78f56ad54fdd93408f9eadaa4c4ca93d9f5aafdf11d5b6984bd140204bf12d51884.css" integrity="sha384-PVXaNpWSE7YOntlPSmTXj1atVP3ZNAj56tqkxMqT2fWq/fEdW2mEvRQCBL8S1RiE"><meta name="twitter:card" content="summary" />
 <meta name="twitter:title" content="Creating a Fast and Efficient Delegate Type (Part 1)" /><body><header id="header">
     <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><span class="site name">Shifting Bits of Wisdom</span></a></span>
         <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/categories/">Categories</a><a class="nav item" href="/tags/">Tags</a><a class="nav item" href="/glossary">Glossary</a><a class="nav item" href="/about">About</a></nav></div></span></div><div class="site slogan"><span class="title">A C++ template metaprogramming blog</span></div></header>
@@ -39,6 +39,28 @@ characteristics, and neither of these are guaranteed to be optimized for the
 above suggested cases.</p>
 <p>We can do better. Lets set out to produce a better alternative to the existing
 solutions that could satisfy this problem in a nice and coherent way.</p>
+<aside class="table-of-contents">
+  <header class="table-of-contents navigation-header">
+    <h2>Table of Contents</h2>
+  </header>
+  <nav id="TableOfContents">
+  <ul>
+    <li><a href="#goal">Goal</a></li>
+    <li><a href="#basic-structure">Basic Structure</a></li>
+    <li><a href="#invoking-the-delegate">Invoking the <code>Delegate</code></a></li>
+    <li><a href="#generating-stubs">Generating Stubs</a>
+      <ul>
+        <li><a href="#function-stubs">Function stubs</a></li>
+        <li><a href="#member-function-stubs">Member Function Stubs</a></li>
+        <li><a href="#binding-const-member-functions">Binding const member functions</a></li>
+        <li><a href="#binding-non-const-member-functions">Binding non-<code>const</code> member functions</a></li>
+      </ul>
+    </li>
+    <li><a href="#closing-remarks">Closing Remarks</a></li>
+  </ul>
+</nav>
+</aside>
+
 <h2 id="goal">Goal</h2>
 <p>To create a fast, light-weight alternative to <code>std::function</code> that
 operates on non-owning references. For our purposes, we will name this type
@@ -151,7 +173,7 @@ argument.</p>
 function to be marked <code>static</code> so that it&rsquo;s not actually a member function of
 the class (which would create a pointer-to-member-function, which is not the
 same as a function pointer).</p>
-<p>So lets do this by making a <code>static</code> function template, that wil simply
+<p>So lets do this by making a <code>static</code> function template, that will simply
 invoke the bound function pointer with the specified arguments:</p>
 <div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">R</span><span class="p">,</span> <span class="k">typename</span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
 <span class="k">class</span> <span class="nc">Delegate</span><span class="o">&lt;</span><span class="n">R</span><span class="p">(</span><span class="n">Args</span><span class="p">...)</span><span class="o">&gt;</span>
@@ -375,11 +397,11 @@ this optimizes to have <strong>zero-overhead</strong>.</p>
       <h4 style="display:none;">Tags</h4>
     </header><a class="tag" href=/tags/templates/>templates</a></section></section>
 <aside class="article metadata"><div class="git-source-container visible-on-wide-devices">
-    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/2b3c9e5b97a9d87f64bb419540402fe6a139b9ac/content/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type.md">2b3c9e5b97a9d87f64bb419540402fe6a139b9ac</a></p>
+    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/9c499726238a1f53b5736d7f4cca5e766cbe621f/content/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type.md">9c499726238a1f53b5736d7f4cca5e766cbe621f</a></p>
   </div>
   <div class="git-source-container visible-on-small-devices">
-    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/2b3c9e5b97a9d87f64bb419540402fe6a139b9ac/content/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type.md">2b3c9e5</a></p>
-  </div><div class="git-modified-container"><p class="last-modified-date"><b>Last modified:</b> <time title="2021-02-28 19:04:33 -0500 -0500" datetime="2021-02-28 19:04:33 -0500 -0500">February 28, 2021</time></p>
+    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/9c499726238a1f53b5736d7f4cca5e766cbe621f/content/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type.md">9c49972</a></p>
+  </div><div class="git-modified-container"><p class="last-modified-date"><b>Last modified:</b> <time title="2021-02-28 19:41:42 -0500 -0500" datetime="2021-02-28 19:41:42 -0500 -0500">February 28, 2021</time></p>
   </div></aside>
 </footer>
 </article>
