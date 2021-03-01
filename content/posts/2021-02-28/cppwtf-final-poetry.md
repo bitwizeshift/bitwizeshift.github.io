@@ -7,12 +7,10 @@ categories: []
 # series: [cppwtf]
 ---
 
-{{<alert
-  type="info"
-  icon="info-circled"
-  message=`**Disclaimer:** The C++WTF segment shines a light on the dark and
-  esoteric corners of the C++ language for fun and profit`
->}}
+{{<info>}}
+**Disclaimer:** The C++WTF segment shines a light on the dark and
+esoteric corners of the C++ language for fun and profit
+{{</info>}}
 
 The C++ standards committee is very strongly against producing any kind of
 breaking changes when considering new language features -- especially keywords.
@@ -27,9 +25,9 @@ would expect. For example, both `final` and `override` are not actually keywords
 at all!
 
 These are **context-sensitive specifiers**, rather than official keywords. This
-means their meaning only applies when found in a very specific place, but
-otherwise allows for their names to be used in any other context -- such as
-variable names and even type names!
+means that their functionality only applies when found in a very specific place,
+but otherwise allows for their names to be used in any other context -- such as
+variable names, function names, and even type names!
 
 This allows for the following program to be completely syntactically
 valid, against all logical reason:

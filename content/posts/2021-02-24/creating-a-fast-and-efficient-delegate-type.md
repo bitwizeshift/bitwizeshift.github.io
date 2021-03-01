@@ -14,11 +14,9 @@ We can do better. Lets produce a better alternative to the existing solutions
 that could satisfy this problem in a nice and coherent way."
 ---
 
-{{<alert
-  type="info"
-  icon="info-circled"
-  message="**Note:** This is part 1 of a 3 part series."
->}}
+{{<info>}}
+**Note:** This is part 1 of a 3 part series.
+{{</info>}}
 
 When working in C++ systems, a frequent design pattern that presents itself is
 the need to bind and reuse functions in a type-erased way. Whether it's

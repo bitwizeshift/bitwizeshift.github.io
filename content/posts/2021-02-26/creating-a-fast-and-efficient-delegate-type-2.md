@@ -12,11 +12,10 @@ even better using `c++17` features.
 "
 ---
 
-{{<alert
-  type="info"
-  icon="info-circled"
-  message="**Note:** This is part 2 of a 3 part series."
->}}
+{{<info>}}
+**Note:** This is part 2 of a 3 part series.
+{{</info>}}
+
 
 In the [previous post](/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type),
 we saw how we could build a simple and light-weight `Delegate` type that binds
