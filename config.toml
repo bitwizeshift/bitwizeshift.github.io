@@ -61,5 +61,5 @@ title = "Glossary"
 url = "/glossary"
 
 [[params.nav.custom]]
-title = "About"
-url = "/about"
+title = "License"
+url = "/license"
