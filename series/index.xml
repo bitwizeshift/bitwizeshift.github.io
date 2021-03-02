@@ -1,8 +1,8 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Series on Shifting Bits of Wisdom</title>
+    <title>Series on @bitwizeshift on software</title>
     <link>https://bitwizeshift.github.io/series/</link>
-    <description>Recent content in Series on Shifting Bits of Wisdom</description>
+    <description>Recent content in Series on @bitwizeshift on software</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>©2021 Matthew Rodusek.</copyright>
@@ -12,7 +12,7 @@
     
     
     <item>
-      <title>C&#43;&#43;wtf: Final Poetry</title>
+      <title>Final Poetry</title>
       <link>https://bitwizeshift.github.io/posts/2021-02-28/cppwtf-final-poetry/</link>
       <pubDate>Sun, 28 Feb 2021 01:23:18 -0500</pubDate>
       
@@ -896,29 +896,12 @@ this optimizes to have &lt;strong&gt;zero-overhead&lt;/strong&gt;.&lt;/p&gt;
     </item>
     
     <item>
-      <title>About</title>
+      <title>About Me</title>
       <link>https://bitwizeshift.github.io/about/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
       <guid>https://bitwizeshift.github.io/about/</guid>
-      <description>&lt;h2 id=&#34;about-this-blog&#34;&gt;About this Blog&lt;/h2&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;
-&lt;span class=&#34;k&#34;&gt;const&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;blog&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Blog&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;bitwizeshift.github.io&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
-&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cout&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;blog&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;details&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
-
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This blog will be a collection of my professional experiences, advice, and
-suggestions for working effectively with C++ &amp;ndash; with an emphasis on template
-metaprogramming.&lt;/p&gt;
-&lt;p&gt;There are several segments that I intend to introduce when I have time,
-including:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;Template metaprogramming tips and tricks&lt;/li&gt;
-&lt;li&gt;How to wrap poorly-designed APIs into something more usable&lt;/li&gt;
-&lt;li&gt;Esoteric features of the C++ language&lt;/li&gt;
-&lt;li&gt;Language-agnostic software design practices&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2 id=&#34;about-the-author&#34;&gt;About the Author&lt;/h2&gt;
-
+      <description>
 &lt;figure class=&#34;image-container&#34;&gt;
   &lt;a href=&#34;https://github.com/bitwizeshift&#34;&gt;
       &lt;img src=&#34;https://github.com/bitwizeshift.png?size=240&#34;  style=&#34;border-radius: 50%;&#34; /&gt;
@@ -936,49 +919,48 @@ including:&lt;/p&gt;
 &lt;span class=&#34;k&#34;&gt;const&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;author&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;blog&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;author&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
 &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cout&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;author&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;introduction&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Hi, my name is Matthew, and I write this blog.&lt;/p&gt;
-&lt;p&gt;I am an embedded software developer by day, C++ template meta-programmer by
-night. I write C++ libraries that I feel would benefit the community in my spare
-time, and release them open-source on my &lt;a href=&#34;https://github.com/bitwizeshift&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;GitHub&lt;/a&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;I&amp;rsquo;m Matthew &lt;code&gt;@bitwizeshift&lt;/code&gt; Rodusek, a software developer from Waterloo, Ontario.
+I am an embedded developer by day, C++ template meta-programmer by
+night. When I see a problem that does not yet have a solution, I develop it &amp;ndash;
+and try to release it to the open-source community (where possible) through my
+&lt;a href=&#34;https://github.com/bitwizeshift&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;GitHub&lt;/a&gt;
 .&lt;/p&gt;
-&lt;p&gt;In my spare time, I&amp;rsquo;m either working on cool projects, answering &lt;code&gt;c++&lt;/code&gt; and
-&lt;code&gt;language-lawyer&lt;/code&gt; tagged questions on stack-overflow, or I am writing up new
-blog entries for here!&lt;/p&gt;
+&lt;p&gt;I&amp;rsquo;m the author of several neat projects, including:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/bitwizeshift/backportcpp&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;BackportCpp&lt;/code&gt;&lt;/a&gt;
+: An ongoing
+effort to backport the best features from &lt;code&gt;c++14&lt;/code&gt;, &lt;code&gt;c++17&lt;/code&gt;, and &lt;code&gt;c++20&lt;/code&gt; to be
+functional in &lt;code&gt;c++11&lt;/code&gt; and compliant to spec&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/bitwizeshift/result&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;Result&lt;/code&gt;&lt;/a&gt;
+: A &lt;code&gt;result&lt;/code&gt; type similar to
+those found in modern languages like &lt;code&gt;Rust&lt;/code&gt; or &lt;code&gt;Swift&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Take a look at my &lt;a href=&#34;https://github.com/bitwizeshift&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Github&lt;/a&gt;
+ to really see what
+I&amp;rsquo;m about.&lt;/p&gt;
+&lt;p&gt;When I&amp;rsquo;m not working on my open-source work or blogging, you might find me
+answering questions on &lt;a href=&#34;https://stackoverflow.com/users/1678770&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;StackOverflow&lt;/a&gt;
+
+where my top tags are &lt;code&gt;c++&lt;/code&gt; and &lt;code&gt;language-lawyer&lt;/code&gt;.&lt;/p&gt;
+&lt;h2 id=&#34;support&#34;&gt;Support&lt;/h2&gt;
+&lt;p&gt;It&amp;rsquo;s difficult finding time to contribute high-quality changes to open-source
+projects as all of this has to be done during my spare time. Even these blog
+posts have to be done during what little time I have available to contribute.&lt;/p&gt;
+&lt;p&gt;This is why &lt;strong&gt;your support is important and can make a difference&lt;/strong&gt;.&lt;/p&gt;
 &lt;p&gt;If you like this blog, or any of my work &amp;ndash; please consider contributing to me
 through Github Sponsors!&lt;/p&gt;
-&lt;figure class=&#34;image-container&#34;&gt;&lt;span class=&#34;link&#34; &gt;&lt;a href=&#34;https://github.com/sponsors/bitwizeshift&#34;
-        target=&#34;_blank&#34;&gt;&lt;img class=&#34;img&#34; src=&#34;https://img.shields.io/static/v1?label=Sponsor&amp;amp;message=%E2%9D%A4&amp;amp;logo=GitHub&#34;/&gt;&lt;/a&gt;&lt;/span&gt;
-&lt;/figure&gt;
+&lt;p&gt;If you like my works and either you’re using them in your real world products,
+or if you just want to help me &amp;ndash; please consider
+&lt;a href=&#34;https://github.com/sponsors/bitwizeshift&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;becoming a sponsor&lt;/a&gt;
 
-&lt;h2 id=&#34;license&#34;&gt;License&lt;/h2&gt;
-&lt;p&gt;Please feel free to make use of &lt;em&gt;any&lt;/em&gt; code found within this blog. I release all
-code, unless otherwise specified, to be available under the very permissive
-&lt;a href=&#34;https://www.boost.org/users/license.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Boost Software License&lt;/a&gt;
-.&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;Boost Software License - Version 1.0 - August 17th, 2003
-
-Permission is hereby granted, free of charge, to any person or organization
-obtaining a copy of the software and accompanying documentation covered by
-this license (the &amp;quot;Software&amp;quot;) to use, reproduce, display, distribute,
-execute, and transmit the Software, and to prepare derivative works of the
-Software, and to permit third-parties to whom the Software is furnished to
-do so, all subject to the following:
-
-The copyright notices in the Software and this entire statement, including
-the above license grant, this restriction and the following disclaimer,
-must be included in all copies of the Software, in whole or in part, and
-all derivative works of the Software, unless such copies or derivative
-works are solely in the form of machine-executable object code generated by
-a source language processor.
-
-THE SOFTWARE IS PROVIDED &amp;quot;AS IS&amp;quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
-SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
-FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
-ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
-&lt;/code&gt;&lt;/pre&gt;</description>
+which will allow me to spend more time on the projects you love.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Thank you.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a class=&#34;github-button&#34; href=&#34;https://github.com/sponsors/mrodusek&#34; data-color-scheme=&#34;no-preference: light; light: light; dark: dark;&#34; data-icon=&#34;octicon-heart&#34; data-size=&#34;large&#34; aria-label=&#34;Sponsor @mrodusek on GitHub&#34;&gt;Sponsor&lt;/a&gt;&lt;/p&gt;
+</description>
     </item>
     
     <item>
@@ -1055,6 +1037,23 @@ valid instance or reference to that object can only refer to something that
 is &amp;ldquo;valid&amp;rdquo; and thus does not require additional late-checking.&lt;/p&gt;
 &lt;p&gt;Primitive types are always trivially correct-on-construction because they can
 only ever occupy their complete range of values.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>License</title>
+      <link>https://bitwizeshift.github.io/license/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://bitwizeshift.github.io/license/</guid>
+      <description>&lt;p&gt;Unless otherwise specified, I release all software and code snippets I write
+under the very permissive &lt;a href=&#34;https://www.boost.org/users/license.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Boost Software License&lt;/a&gt;
+.&lt;/p&gt;
+&lt;p&gt;This license has very little limitations. It gives full support for authors to
+adapt, modify, and use either commercially or non-commercially as they see fit
+&amp;ndash; provided that the origin of the software is not misrepresented. This license
+does not require any attribution to be made in the final compiled product, but
+requires attribution to be retained in source redistributions.&lt;/p&gt;
 </description>
     </item>
     
