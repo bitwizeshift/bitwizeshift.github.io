@@ -30,6 +30,12 @@ logo = ""
 # license = "MIT"  # MIT License
 repo = "https://github.com/bitwizeshift/bitwizeshift.github.io"
 
+[params.social]
+github = "bitwizeshift"
+linkedin = "matthewrodusek"
+email = "matthew.rodusek@gmail.com"
+stackoverflow = "1678770"
+
 [params.github]
 username = "bitwizeshift"
 repository = "bitwizeshift.github.io"
