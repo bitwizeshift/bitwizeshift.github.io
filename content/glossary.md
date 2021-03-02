@@ -1,9 +1,11 @@
-+++
-title = "Glossary"
-description = "Commonly used terms"
-aliases = ["glossary", "dictionary"]
-author = "Matthew Rodusek"
-+++
+---
+title: "Glossary"
+description: "Commonly used terms"
+aliases: ["glossary", "dictionary"]
+author: "Matthew Rodusek"
+github:
+  ignore: true
+---
 
 Some of the terminology I use throughout this blog may be both technical and
 uncommon, so this page serves as a quick-reference.

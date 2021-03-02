@@ -1,6 +1,6 @@
 baseURL = "https://bitwizeshift.github.io/"
 languageCode = "en-us"
-title = "Shifting Bits of Wisdom"
+title = "@bitwizeshift on software"
 theme = "hugo-notepadium"
 copyright = "©2021 Matthew Rodusek."
 
@@ -26,9 +26,13 @@ unsafe = true  # enable raw HTML in Markdown
 style = "auto"  # default: auto. light: light theme, dark: dark theme, auto: based on system.
 dateFormat = "January 2, 2006"
 logo = ""
-slogan = "A C++ template metaprogramming blog"
+# slogan = "A C++ template metaprogramming blog"
 # license = "MIT"  # MIT License
 repo = "https://github.com/bitwizeshift/bitwizeshift.github.io"
+
+[params.github]
+username = "bitwizeshift"
+repository = "bitwizeshift.github.io"
 
 [params.comments]
 enable = false  # Comments are enabled per blog post
@@ -43,6 +47,14 @@ showCategories = true
 showTags = true
 
 # custom navigation items
+
+[[params.nav.custom]]
+title = "About Me"
+url = "/about"
+
+[[params.nav.custom]]
+title = "Tags"
+url = "/tags"
 
 [[params.nav.custom]]
 title = "Glossary"
