@@ -1,5 +1,6 @@
 ---
 title: "Creating a Fast and Efficient Delegate Type (Part 3)"
+subtitle: "Optimizing Delegate to have zero overhead"
 date: 2021-02-26T22:19:51-05:00
 draft: false
 tags: [performance, optimizing, templates]

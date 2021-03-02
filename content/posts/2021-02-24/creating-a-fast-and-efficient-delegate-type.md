@@ -1,5 +1,6 @@
 ---
 title: "Creating a Fast and Efficient Delegate Type (Part 1)"
+subtitle: "A simple solution to lightweight function binding"
 date: 2021-02-24T20:03:14-05:00
 draft: false
 tags: [templates]
