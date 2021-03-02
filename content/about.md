@@ -61,4 +61,4 @@ which will allow me to spend more time on the projects you love.
 
 **Thank you.**
 
-<a class="github-button" href="https://github.com/sponsors/mrodusek" data-color-scheme="no-preference: light; light: light; dark: dark;" data-icon="octicon-heart" data-size="large" aria-label="Sponsor @mrodusek on GitHub">Sponsor</a>
+<a class="github-button" href="https://github.com/sponsors/bitwizeshift" data-color-scheme="no-preference: light; light: light; dark: dark;" data-icon="octicon-heart" data-size="large" aria-label="Sponsor @bitwizeshift on GitHub">Sponsor</a>
