@@ -33,7 +33,7 @@ repo = "https://github.com/bitwizeshift/bitwizeshift.github.io"
 [params.social]
 github = "bitwizeshift"
 linkedin = "matthewrodusek"
-email = "matthew.rodusek@gmail.com"
+email = "bitwizeshift@rodusek.com"
 stackoverflow = "1678770"
 
 [params.github]
