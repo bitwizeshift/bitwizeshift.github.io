@@ -2,7 +2,7 @@
 title: "About Me"
 subtitle: "Who is this guy and why should I care?"
 description: "About the author"
-aliases: ["about"]
+aliases: ["about", "aboutme"]
 author: "Matthew Rodusek"
 github:
   ignore: true
@@ -51,11 +51,8 @@ posts have to be done during what little time I have available to contribute.
 
 This is why **your support is important and can make a difference**.
 
-If you like this blog, or any of my work -- please consider contributing to me
-through Github Sponsors!
-
-If you like my works and either you’re using them in your real world products,
-or if you just want to help me -- please consider
+If you like this blog, like and use my work in any real-world products, or
+even just want to help support me -- please consider
 [becoming a sponsor](https://github.com/sponsors/bitwizeshift)
 which will allow me to spend more time on the projects you love.
 
