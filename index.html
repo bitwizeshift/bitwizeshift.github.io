@@ -9,6 +9,19 @@
     <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/about">About Me</a><a class="nav item" href="/tags">Tags</a><a class="nav item" href="/glossary">Glossary</a><a class="nav item" href="/license">License</a></nav></div></span></div></header>
 <section id="content"><main class="article"><article class="article article-container entry">
     <header class="article entry-header header">
+      <a href="/posts/2020-03-02/builder-pattern-expressing-ownership-transfer/" rel="bookmark">
+        <h1 class="article entry-title">Builder Pattern: Expressing ownership transfer</h1><h2 class="article entry-subtitle subtitle">A simple underused approach to express moving members out of an object</h2></a><p class="article entry-date date">Posted on <time datetime="2021-03-02 17:06:40 -0500 -0500" title="2021-03-02 17:06:40 -0500 -0500">March 2, 2021</time></p></header>
+    <section class="article entry-content"><p class="note content"><p>The Builder pattern is a common design in software development for late-binding
+inputs to allow for iterative construction. This pattern, when applied in <code>c++</code>,
+leaves one very obvious question: <strong>Can we present this to consumers in an
+optimal way?</strong></p>
+<p>More specifically: when we call <code>build()</code>, should we be moving any temporary
+internal state, or copy it? Can we express both in a safe and idiomatic way to
+consumers?</p><span class="mldr">&mldr;</span></p></section>
+    <footer class="article entry-footer"><p class="note labels"></p>
+    <p class="note labels"><a class="tag" href="/tags/c&#43;&#43;11/">c&#43;&#43;11</a><a class="tag" href="/tags/ref-qualifiers/">ref-qualifiers</a></p></footer>
+  </article><article class="article article-container entry">
+    <header class="article entry-header header">
       <a href="/posts/2021-02-28/cppwtf-final-poetry/" rel="bookmark">
         <h1 class="article entry-title">Final Poetry</h1><h2 class="article entry-subtitle subtitle">An entry in the C++wtf segment</h2></a><p class="article entry-date date">Posted on <time datetime="2021-02-28 01:23:18 -0500 -0500" title="2021-02-28 01:23:18 -0500 -0500">February 28, 2021</time></p></header>
     <section class="article entry-content"><p class="note content">Disclaimer: The C++WTF segment shines a light on the dark and esoteric corners of the C++ language for fun and profit  The C++ standards committee is very strongly against producing any kind of breaking changes when considering new language features – especially keywords. Over the course of standardization, this has lead to terms like auto being repurposed, or awkward keywords like co_await and co_yield being introduced in C++20 to avoid breaking a handful of projects in the world that might possibly be using await or yield in their vocabulary.<span class="mldr">&mldr;</span></p></section>

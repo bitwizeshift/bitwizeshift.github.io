@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.80.0" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark"><title>Builder Pattern: Expressing ownership transfer&nbsp;&ndash;&nbsp;@bitwizeshift on software</title><link rel="stylesheet" href="/css/core.min.4140f446d25e4b5d351f6d99fa40508cbba7f7d8f432ac5a97db2ff93a958a65daa44804d9f4f7bfa35b9b99a5b7fe23.css" integrity="sha384-QUD0RtJeS101H22Z&#43;kBQjLun99j0Mqxal9sv&#43;TqVimXapEgE2fT3v6Nbm5mlt/4j"><meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Builder Pattern: Expressing ownership transfer" /><body><header id="header">
+  <div class="header wrap">
+    <div class="header left-side"><a class="site home" href="/"><span class="site name">@bitwizeshift on software</span></a>
+    </div>
+    <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/about">About Me</a><a class="nav item" href="/tags">Tags</a><a class="nav item" href="/glossary">Glossary</a><a class="nav item" href="/license">License</a></nav></div></span></div></header>
+<section id="content"><main class="article-container">
+  <article class="article"><header class="article header">
+  <h1 class="article title">Builder Pattern: Expressing ownership transfer</h1><h2 class="article subtitle">A simple underused approach to express moving members out of an object</h2><p class="article date">
+      Posted on <time class="published"  title="2021-03-02 17:06:40 -0500 -0500" datetime="2021-03-02 17:06:40 -0500 -0500">March 2, 2021</time></p><aside class="article subscription">
+    <a class="github-button" href="https://github.com/bitwizeshift/bitwizeshift.github.io" data-color-scheme="no-preference: light; light: light; dark: dark;" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Starbitwizeshift/bitwizeshift.github.ioon GitHub">Star</a><a class="github-button" href="https://github.com/bitwizeshift" data-color-scheme="no-preference: light; light: light; dark: dark;" data-size="large" data-show-count="true" aria-label="Follow @bitwizeshifton GitHub">Follow @bitwizeshift</a></aside></header>
+<section class="article markdown-body"><p>The Builder pattern is a common design in software development for late-binding
+inputs to allow for iterative construction. This pattern, when applied in <code>c++</code>,
+leaves one very obvious question: <strong>Can we present this to consumers in an
+optimal way?</strong></p>
+<p>More specifically: when we call <code>build()</code>, should we be moving any temporary
+internal state, or copy it? Can we express both in a safe and idiomatic way to
+consumers?</p>
+<hr>
+<p>This was a problem I faced in a personal project of mine where I was using a builder
+pattern for producing a <code>Mesh</code> object for the purpose of rendering. I wanted to
+allow for the client to call <code>build()</code> in one of two ways:</p>
+<ol>
+<li>To cheaply create a <code>Mesh</code> object by moving the internals of the existing
+builder (no copies, but destructively mutates the builder), and</li>
+<li>To optionally create a <code>Mesh</code> without moving the internals of the builder, so
+that the builder may safely be reused.</li>
+</ol>
+<p>I wanted this to be expressed in a safe and C++-idiomatic fashion.</p>
+<aside class="table-of-contents">
+  <header class="table-of-contents navigation-header">
+    <h2>Table of Contents</h2>
+  </header>
+  <nav id="TableOfContents">
+  <ul>
+    <li><a href="#goal">Goal</a></li>
+    <li><a href="#possible-options">Possible Options</a>
+      <ul>
+        <li><a href="#presenting-a-const-and-non-const-build-function">Presenting a <code>const</code> and non-<code>const</code> <code>build()</code> function</a></li>
+        <li><a href="#present-differently-named-build-functions">Present differently named <code>build()</code> functions</a></li>
+      </ul>
+    </li>
+    <li><a href="#ref-qualifying-functions">Ref-qualifying functions</a>
+      <ul>
+        <li><a href="#applying-ref-qualifications-to-our-builder">Applying ref-qualifications to our builder</a></li>
+      </ul>
+    </li>
+    <li><a href="#closing-remarks">Closing Remarks</a></li>
+  </ul>
+</nav>
+</aside>
+
+<h2 id="goal">Goal</h2>
+<p>The primary goal is to create a builder pattern that gives the user the
+opportunity to transfer ownership of internal resources while still conveying
+this to the caller in an idiomatic way.</p>
+<p>This should support a potentially-destructive <code>build()</code> that is clear to
+the caller what the intent is to avoid potential use-after-moves errors.</p>
+<p>For this post, I will be using a <code>StringBuilder</code> as an example of something that
+<em>may</em> potentially be an expensive object to copy in practice, and eliding such
+copies may be desirable.</p>
+<h2 id="possible-options">Possible Options</h2>
+<p>There are a couple of obvious and straight-forward ways that this could be
+implemented which I will walk through first; however they each have hidden
+costs.</p>
+<h3 id="presenting-a-const-and-non-const-build-function">Presenting a <code>const</code> and non-<code>const</code> <code>build()</code> function</h3>
+<p>The simplest / easiest approach would be to offer two sets of functions as an
+overload set: one that copies, one that moves:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">class</span> <span class="nc">StringBuilder</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+  <span class="p">...</span>
+  <span class="k">auto</span> <span class="n">build</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">m_data</span><span class="p">);</span> <span class="c1">// move!
+</span><span class="c1"></span>  <span class="p">}</span>
+  <span class="k">auto</span> <span class="nf">build</span><span class="p">()</span> <span class="k">const</span> <span class="o">-&gt;</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">m_data</span><span class="p">;</span> <span class="c1">// copy!
+</span><span class="c1"></span>  <span class="p">}</span>
+  <span class="p">...</span>
+<span class="k">private</span><span class="o">:</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">m_data</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div><p>The problem with this approach is subtle; if your local instance of
+<code>StringBuilder</code> is <code>const</code>, this will result in a copy &ndash; otherwise this will
+always <strong>destructively mutate</strong> causing future uses to be <strong>undefined behavior</strong>.
+This is not obvious from inspection, and would likely be missed on code-review:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">auto</span> <span class="n">builder</span> <span class="o">=</span> <span class="n">StringBuilder</span><span class="p">{};</span>
+<span class="n">builder</span><span class="p">.</span><span class="n">append</span><span class="p">(...);</span>
+<span class="p">...</span>
+<span class="k">auto</span> <span class="n">s1</span> <span class="o">=</span> <span class="n">builder</span><span class="p">.</span><span class="n">build</span><span class="p">();</span>
+
+<span class="c1">// keep reusing builder
+</span><span class="c1"></span><span class="n">builder</span><span class="p">.</span><span class="n">append</span><span class="p">(...);</span>
+<span class="p">...</span>
+<span class="k">auto</span> <span class="n">s2</span> <span class="o">=</span> <span class="n">builder</span><span class="p">.</span><span class="n">build</span><span class="p">();</span>
+</code></pre></div><p>Did you catch that bug?</p>
+<p><code>builder</code> is a non-<code>const</code> <code>StringBuilder</code> object. The first call to
+<code>builder.build()</code> will call the non-<code>const</code>-qualified overload of <code>build()</code>,
+resulting in <code>std::move(m_data)</code>. This results in any future operations like
+<code>builder.append(...)</code> or the future <code>builder.build()</code> call to be operating on
+a moved-from <code>std::string</code> object &ndash; which is <strong>undefined behavior</strong>!</p>
+<p>This problem would be subtle, and easy to miss on reviews. Lets try a different
+approach.</p>
+<h3 id="present-differently-named-build-functions">Present differently named <code>build()</code> functions</h3>
+<p>The next logical progression from the first option is to distinguish the
+destructive <code>build()</code> function from the non-destructive <code>build()</code> function by
+simply <em>naming them differently</em>. For example, we could name one <code>build()</code> and
+the other <code>build_destructive()</code></p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">class</span> <span class="nc">StringBuilder</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+  <span class="p">...</span>
+  <span class="k">auto</span> <span class="n">build_destructive</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">m_data</span><span class="p">);</span> <span class="c1">// move!
+</span><span class="c1"></span>  <span class="p">}</span>
+  <span class="k">auto</span> <span class="nf">build</span><span class="p">()</span> <span class="k">const</span> <span class="o">-&gt;</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">m_data</span><span class="p">;</span> <span class="c1">// copy!
+</span><span class="c1"></span>  <span class="p">}</span>
+  <span class="p">...</span>
+<span class="k">private</span><span class="o">:</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">m_data</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div><p>This would make the use of the code a little more clear, which should hopefully
+avoid errors:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">auto</span> <span class="n">builder</span> <span class="o">=</span> <span class="n">StringBuilder</span><span class="p">{};</span>
+<span class="n">builder</span><span class="p">.</span><span class="n">append</span><span class="p">(...);</span>
+<span class="p">...</span>
+<span class="k">auto</span> <span class="n">s1</span> <span class="o">=</span> <span class="n">builder</span><span class="p">.</span><span class="n">build_destructive</span><span class="p">();</span> <span class="c1">// &lt;-- the bug is a little more obvious
+</span><span class="c1"></span>
+<span class="c1">// keep reusing builder
+</span><span class="c1"></span><span class="n">builder</span><span class="p">.</span><span class="n">append</span><span class="p">(...);</span>
+<span class="p">...</span>
+<span class="k">auto</span> <span class="n">s2</span> <span class="o">=</span> <span class="n">builder</span><span class="p">.</span><span class="n">build</span><span class="p">();</span>
+</code></pre></div><p>This now makes the bug from the first iteration a <em>little more obvious</em> &ndash; but
+with the one catch that you have to know the API to understand what it&rsquo;s doing.
+This effectively forces a nomenclature on the codebase where only developers
+who are comfortable with the code or have read the documentation
+will be aware of what the distinction and repercussions are for this use.</p>
+<p>A newcomer to your codebase might see <code>build_destructive</code> but not realize that
+this actually produces a possible error downstream; it isn&rsquo;t <em>idiomatic</em>.</p>
+<p>Perhaps we can find a better solution that the average modern C++ developer may
+catch?</p>
+<h2 id="ref-qualifying-functions">Ref-qualifying functions</h2>
+<p>It turns out, <code>c++11</code> actually offers something that would make this easier to
+catch from most general developers.</p>
+<p><code>c++11</code> was one of the largest changes to the C++ programming language in
+decades, adding dozens of new language features that many developers don&rsquo;t
+necessarily know about. Of these features is a peculiar new qualification to
+member functions called
+<a href="https://en.cppreference.com/w/cpp/language/member_functions#ref-qualified_member_functions"target="_blank" rel="noopener noreferrer">ref-qualified functions</a>
+.</p>
+<p>Similar to CV-qualifications, ref-qualifications allow you to designate
+non-static member functions that will be invoked based on whether a type is
+used from the context of an lvalue-reference, or an rvalue-reference.</p>
+<p>As example, you can have:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">struct</span> <span class="nc">Foo</span> <span class="p">{</span>
+  <span class="kt">void</span> <span class="nf">do_something</span><span class="p">()</span> <span class="o">&amp;</span> <span class="p">{</span> <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;&amp;-qualified&#34;</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span> <span class="p">}</span>
+  <span class="c1">//                  ^ - lvalue qualified
+</span><span class="c1"></span>  <span class="kt">void</span> <span class="nf">do_something</span><span class="p">()</span> <span class="o">&amp;&amp;</span> <span class="p">{</span> <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;&amp;&amp;-qualified&#34;</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span> <span class="p">}</span>
+  <span class="c1">//                  ^~ - rvalue qualified
+</span><span class="c1"></span><span class="p">};</span>
+
+<span class="k">auto</span> <span class="n">f</span> <span class="o">=</span> <span class="n">Foo</span><span class="p">{};</span>
+<span class="n">f</span><span class="p">.</span><span class="n">do_something</span><span class="p">();</span>            <span class="c1">// prints &#39;&amp;-qualfiied&#39;
+</span><span class="c1"></span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">f</span><span class="p">).</span><span class="n">do_something</span><span class="p">();</span> <span class="c1">// prints &#39;&amp;&amp;-qualified&#39;
+</span><span class="c1"></span><span class="n">Foo</span><span class="p">{}.</span><span class="n">do_something</span><span class="p">();</span>        <span class="c1">// prints &#39;&amp;&amp;-qualified&#39; (since this is a temporary)
+</span></code></pre></div><p>This allows you to have different behavior based on whether it&rsquo;s called from
+an rvalue context compare to an lvalue context.</p>
+<p>Ref-qualified overloads are mostly seen in general-purpose utilities like
+<code>std::optional</code> to allow for the underlying data being accessed to have the
+same refness as the caller &ndash; but it turns out this same mechanism can be used
+to help us to develop clean, idiomatic APIs.</p>
+<h3 id="applying-ref-qualifications-to-our-builder">Applying ref-qualifications to our builder</h3>
+<p>So how can we now apply ref-qualifications to our builder?</p>
+<p>Simple; we offer an overload set of the <code>build()</code> function, where one operates
+on a non-<code>const</code> rvalue (<code>&amp;&amp;</code>) qualified object, and the other operates on
+a <code>const</code> lvalue (<code>&amp;</code>) qualified object. This is effectively fitting our first
+implementation with ref-qualifications:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">class</span> <span class="nc">StringBuilder</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+  <span class="p">...</span>
+  <span class="k">auto</span> <span class="n">build</span><span class="p">()</span> <span class="o">&amp;&amp;</span> <span class="o">-&gt;</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="p">{</span>
+    <span class="c1">//         ^~ --- new
+</span><span class="c1"></span>    <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">m_data</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="k">auto</span> <span class="nf">build</span><span class="p">()</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="o">-&gt;</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="p">{</span>
+    <span class="c1">//               ^ --- new
+</span><span class="c1"></span>    <span class="k">return</span> <span class="n">m_data</span><span class="p">;</span> <span class="c1">// copy!
+</span><span class="c1"></span>  <span class="p">}</span>
+  <span class="p">...</span>
+<span class="k">private</span><span class="o">:</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">m_data</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div><p>Lets take a look at how this changes our use of this code:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">auto</span> <span class="n">builder</span> <span class="o">=</span> <span class="n">StringBuilder</span><span class="p">{};</span>
+<span class="n">builder</span><span class="p">.</span><span class="n">append</span><span class="p">(...);</span>
+<span class="p">...</span>
+<span class="k">auto</span> <span class="n">s1</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">builder</span><span class="p">).</span><span class="n">build</span><span class="p">();</span>
+
+<span class="c1">// keep reusing builder
+</span><span class="c1"></span><span class="n">builder</span><span class="p">.</span><span class="n">append</span><span class="p">(...);</span> <span class="c1">// &lt;-- very clear use after move!
+</span><span class="c1"></span><span class="p">...</span>
+<span class="k">auto</span> <span class="n">s2</span> <span class="o">=</span> <span class="n">builder</span><span class="p">.</span><span class="n">build</span><span class="p">();</span>
+</code></pre></div><p>With this relatively simple transformation, we can now make detection of this
+use-after-move a lot more idiomatic and visible &ndash; even to developers who are
+unfamiliar with the current code.</p>
+<p>In general, it&rsquo;s safe to assume that <code>std::move(x)</code> will move the contents of
+<code>x</code> in some way. So it stands to reason that a call of
+<code>std::move(builder).build()</code> will also be idiomatic to assume that <code>builder</code>
+is somehow being destructively mutated after the call &ndash; which will result in a
+use-after-move. This now communicates the destructiveness from the API
+surface-area.</p>
+<p>Similarly, a call of <code>builder.build()</code> is safe to assume will not result in an
+use-after-move effects.</p>
+<p>Ultimately, this approach actually lets us offer move-semantics in a way that
+won&rsquo;t subtly break clients &ndash; all while still allowing for object reuse to
+consumers who desire it. It also <em>forces</em> the client of this API to think about
+what they are doing &ndash; since the only way to get the data out efficiently is to
+call <code>std::move</code>, which should be an early warning sign of its destructiveness.</p>
+<h2 id="closing-remarks">Closing Remarks</h2>
+<p>The key take-away from this is that ref-qualified functions are powerful in
+their ability to express ownership transfer. Not only does this present a
+lightweight function to clients by allowing them to reuse the internal state
+of the object &ndash; it also allows this to be done so in an idiomatic way that
+would stand out to developers and static-analysis tools if misused.</p>
+<p>Next time you want to allow both copying and moving of a class' member, consider
+offering a ref-qualified overload set!</p></section><footer class="article footer"><section class="article labels"><section class="article-tags-section">
+    <header class="article languages header" style="float:left;">
+      <h4 style="display:none;">Tags</h4>
+    </header>
+    <p><a class="tag" href=/tags/c&#43;&#43;11/>c&#43;&#43;11</a><a class="tag" href=/tags/ref-qualifiers/>ref-qualifiers</a></p>
+  </section></section><section class="article social-share">
+  <span class="sr-only">Share: </span>
+  <a href="https://twitter.com/intent/tweet?text=Builder%20Pattern%3a%20Expressing%20ownership%20transfer&amp;url=https%3a%2f%2fbitwizeshift.github.io%2fposts%2f2020-03-02%2fbuilder-pattern-expressing-ownership-transfer%2f" class="btn btn-social-icon btn-twitter" title="Share on Twitter">
+    <span class="iconfont icon-twitter" aria-hidden="true"></span>
+    <span class="sr-only">Twitter</span>
+  </a>
+  
+  <a href="https://www.facebook.com/sharer/sharer.php?u=https%3a%2f%2fbitwizeshift.github.io%2fposts%2f2020-03-02%2fbuilder-pattern-expressing-ownership-transfer%2f" class="btn btn-social-icon btn-facebook" title="Share on Facebook">
+    <span class="iconfont icon-facebook" aria-hidden="true"></span>
+    <span class="sr-only">Facebook</span>
+  </a>
+  
+  <a href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2fbitwizeshift.github.io%2fposts%2f2020-03-02%2fbuilder-pattern-expressing-ownership-transfer%2f" class="btn btn-social-icon btn-linkedin" title="Share on LinkedIn">
+    <span class="iconfont icon-linkedin" aria-hidden="true"></span>
+    <span class="sr-only">LinkedIn</span>
+  </a>
+  
+  <a href="https://www.reddit.com/submit?title=Builder%20Pattern%3a%20Expressing%20ownership%20transfer&amp;url=https%3a%2f%2fbitwizeshift.github.io%2fposts%2f2020-03-02%2fbuilder-pattern-expressing-ownership-transfer%2f" class="btn btn-social-icon btn-linkedin" title="Share on Reddit">
+    <span class="iconfont icon-reddit-alien" aria-hidden="true"></span>
+    <span class="sr-only">Reddit</span>
+  </a>
+</section>
+
+<aside class="article metadata"><div class="git-source-container visible-on-wide-devices">
+    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/8b4dea10e32fcd7d8c76da16a9c4d2d86f9256cd/content/posts/2020-03-02/builder-pattern-expressing-ownership-transfer.md">8b4dea10e32fcd7d8c76da16a9c4d2d86f9256cd</a></p>
+  </div>
+  <div class="git-source-container visible-on-small-devices">
+    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/8b4dea10e32fcd7d8c76da16a9c4d2d86f9256cd/content/posts/2020-03-02/builder-pattern-expressing-ownership-transfer.md">8b4dea1</a></p>
+  </div><div class="git-modified-container"><p class="last-modified-date"><b>Last modified:</b> <time title="2021-03-02 23:44:53 -0500 -0500" datetime="2021-03-02 23:44:53 -0500 -0500">March 2, 2021</time></p>
+  </div></aside>
+</footer>
+</article>
+</main><div class="article bottom"><section class="article bottom-navigation"><section class="previous-and-next"><section class="previous-article"><div class="visible-on-wide-devices">
+        <p><strong>
+          <a class="link" href="/posts/2021-02-28/cppwtf-final-poetry/" title="Final Poetry"><span class="iconfont icon-previous"></span> Previous Post</a>
+        </strong></p>
+      </div>
+      <div class="visible-on-small-devices">
+        <p><strong>
+          <a class="link" href="/posts/2021-02-28/cppwtf-final-poetry/" title="Final Poetry">Previous Post</a>
+        </strong></p>
+      </div></section></section>
+</section></div></section><footer id="footer">
+  <div class="footer-wrap"><section class="social">
+  <a class="link" href="/index.xml" title="RSS"><span class="sr-only">RSS</span><span class="iconfont icon-rss"></span></a><a class="link" href="mailto:bitwizeshift@rodusek.com" title="Email me"><span class="sr-only">Email me</span><span class="iconfont icon-envelope-open-o"></span></a><a class="link" href="https://github.com/bitwizeshift" title="Github"><span class="sr-only">Github</span><span class="iconfont icon-github"></span></a><a class="link" href="https://linkedin.com/in/matthewrodusek" title="LinkedIn"><span class="sr-only">LinkedIn</span><span class="iconfont icon-linkedin"></span></a><a class="link" href="https://stackoverflow.com/users/1678770" title="StackOverflow"><span class="sr-only">StackOverflow</span><span class="iconfont icon-stackoverflow"></span></a></section>
+<p class="copyright">©2021 Matthew Rodusek.</p>
+<p class="powerby"><span>Powered&nbsp;by&nbsp;</span><a href="https://gohugo.io"
+    target="_blank" rel="noopener noreferrer">Hugo</a><span>&nbsp;&amp;&nbsp;</span><a href="https://themes.gohugo.io/hugo-notepadium/"
+    target="_blank" rel="noopener noreferrer">Notepadium</a></p>
+</div>
+</footer><script async defer src="/js/buttons.min.e1055efdc48aea4c0d886bc9ffd40ce7e0cc91405c7ea5b9956c5fa7699e8e488b6adf552d56ad9146d22d2b7f4e9173.js" integrity="sha384-4QVe/cSK6kwNiGvJ/9QM5&#43;DMkUBcfqW5lWxfp2mejkiLat9VLVatkUbSLSt/TpFz"></script>
+</body>
+
+</html>

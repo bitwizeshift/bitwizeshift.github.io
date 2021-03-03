@@ -6,10 +6,238 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>©2021 Matthew Rodusek.</copyright>
-    <lastBuildDate>Sun, 28 Feb 2021 01:23:18 -0500</lastBuildDate>
+    <lastBuildDate>Tue, 02 Mar 2021 17:06:40 -0500</lastBuildDate>
     
         <atom:link href="https://bitwizeshift.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Builder Pattern: Expressing ownership transfer</title>
+      <link>https://bitwizeshift.github.io/posts/2020-03-02/builder-pattern-expressing-ownership-transfer/</link>
+      <pubDate>Tue, 02 Mar 2021 17:06:40 -0500</pubDate>
+      
+      <guid>https://bitwizeshift.github.io/posts/2020-03-02/builder-pattern-expressing-ownership-transfer/</guid>
+      <description>&lt;p&gt;The Builder pattern is a common design in software development for late-binding
+inputs to allow for iterative construction. This pattern, when applied in &lt;code&gt;c++&lt;/code&gt;,
+leaves one very obvious question: &lt;strong&gt;Can we present this to consumers in an
+optimal way?&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;More specifically: when we call &lt;code&gt;build()&lt;/code&gt;, should we be moving any temporary
+internal state, or copy it? Can we express both in a safe and idiomatic way to
+consumers?&lt;/p&gt;
+&lt;hr&gt;
+&lt;p&gt;This was a problem I faced in a personal project of mine where I was using a builder
+pattern for producing a &lt;code&gt;Mesh&lt;/code&gt; object for the purpose of rendering. I wanted to
+allow for the client to call &lt;code&gt;build()&lt;/code&gt; in one of two ways:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;To cheaply create a &lt;code&gt;Mesh&lt;/code&gt; object by moving the internals of the existing
+builder (no copies, but destructively mutates the builder), and&lt;/li&gt;
+&lt;li&gt;To optionally create a &lt;code&gt;Mesh&lt;/code&gt; without moving the internals of the builder, so
+that the builder may safely be reused.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;I wanted this to be expressed in a safe and C++-idiomatic fashion.&lt;/p&gt;
+&lt;aside class=&#34;table-of-contents&#34;&gt;
+  &lt;header class=&#34;table-of-contents navigation-header&#34;&gt;
+    &lt;h2&gt;Table of Contents&lt;/h2&gt;
+  &lt;/header&gt;
+  &lt;nav id=&#34;TableOfContents&#34;&gt;
+  &lt;ul&gt;
+    &lt;li&gt;&lt;a href=&#34;#goal&#34;&gt;Goal&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#possible-options&#34;&gt;Possible Options&lt;/a&gt;
+      &lt;ul&gt;
+        &lt;li&gt;&lt;a href=&#34;#presenting-a-const-and-non-const-build-function&#34;&gt;Presenting a &lt;code&gt;const&lt;/code&gt; and non-&lt;code&gt;const&lt;/code&gt; &lt;code&gt;build()&lt;/code&gt; function&lt;/a&gt;&lt;/li&gt;
+        &lt;li&gt;&lt;a href=&#34;#present-differently-named-build-functions&#34;&gt;Present differently named &lt;code&gt;build()&lt;/code&gt; functions&lt;/a&gt;&lt;/li&gt;
+      &lt;/ul&gt;
+    &lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#ref-qualifying-functions&#34;&gt;Ref-qualifying functions&lt;/a&gt;
+      &lt;ul&gt;
+        &lt;li&gt;&lt;a href=&#34;#applying-ref-qualifications-to-our-builder&#34;&gt;Applying ref-qualifications to our builder&lt;/a&gt;&lt;/li&gt;
+      &lt;/ul&gt;
+    &lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#closing-remarks&#34;&gt;Closing Remarks&lt;/a&gt;&lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/nav&gt;
+&lt;/aside&gt;
+
+&lt;h2 id=&#34;goal&#34;&gt;Goal&lt;/h2&gt;
+&lt;p&gt;The primary goal is to create a builder pattern that gives the user the
+opportunity to transfer ownership of internal resources while still conveying
+this to the caller in an idiomatic way.&lt;/p&gt;
+&lt;p&gt;This should support a potentially-destructive &lt;code&gt;build()&lt;/code&gt; that is clear to
+the caller what the intent is to avoid potential use-after-moves errors.&lt;/p&gt;
+&lt;p&gt;For this post, I will be using a &lt;code&gt;StringBuilder&lt;/code&gt; as an example of something that
+&lt;em&gt;may&lt;/em&gt; potentially be an expensive object to copy in practice, and eliding such
+copies may be desirable.&lt;/p&gt;
+&lt;h2 id=&#34;possible-options&#34;&gt;Possible Options&lt;/h2&gt;
+&lt;p&gt;There are a couple of obvious and straight-forward ways that this could be
+implemented which I will walk through first; however they each have hidden
+costs.&lt;/p&gt;
+&lt;h3 id=&#34;presenting-a-const-and-non-const-build-function&#34;&gt;Presenting a &lt;code&gt;const&lt;/code&gt; and non-&lt;code&gt;const&lt;/code&gt; &lt;code&gt;build()&lt;/code&gt; function&lt;/h3&gt;
+&lt;p&gt;The simplest / easiest approach would be to offer two sets of functions as an
+overload set: one that copies, one that moves:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;class&lt;/span&gt; &lt;span class=&#34;nc&#34;&gt;StringBuilder&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;public&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;build&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;move&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;m_data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;// move!
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;build&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;const&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;m_data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;// copy!
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;private&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt;
+
+  &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;m_data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The problem with this approach is subtle; if your local instance of
+&lt;code&gt;StringBuilder&lt;/code&gt; is &lt;code&gt;const&lt;/code&gt;, this will result in a copy &amp;ndash; otherwise this will
+always &lt;strong&gt;destructively mutate&lt;/strong&gt; causing future uses to be &lt;strong&gt;undefined behavior&lt;/strong&gt;.
+This is not obvious from inspection, and would likely be missed on code-review:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;builder&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;StringBuilder&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{};&lt;/span&gt;
+&lt;span class=&#34;n&#34;&gt;builder&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;append&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(...);&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s1&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;builder&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;build&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+
+&lt;span class=&#34;c1&#34;&gt;// keep reusing builder
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;builder&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;append&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(...);&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s2&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;builder&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;build&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Did you catch that bug?&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;builder&lt;/code&gt; is a non-&lt;code&gt;const&lt;/code&gt; &lt;code&gt;StringBuilder&lt;/code&gt; object. The first call to
+&lt;code&gt;builder.build()&lt;/code&gt; will call the non-&lt;code&gt;const&lt;/code&gt;-qualified overload of &lt;code&gt;build()&lt;/code&gt;,
+resulting in &lt;code&gt;std::move(m_data)&lt;/code&gt;. This results in any future operations like
+&lt;code&gt;builder.append(...)&lt;/code&gt; or the future &lt;code&gt;builder.build()&lt;/code&gt; call to be operating on
+a moved-from &lt;code&gt;std::string&lt;/code&gt; object &amp;ndash; which is &lt;strong&gt;undefined behavior&lt;/strong&gt;!&lt;/p&gt;
+&lt;p&gt;This problem would be subtle, and easy to miss on reviews. Lets try a different
+approach.&lt;/p&gt;
+&lt;h3 id=&#34;present-differently-named-build-functions&#34;&gt;Present differently named &lt;code&gt;build()&lt;/code&gt; functions&lt;/h3&gt;
+&lt;p&gt;The next logical progression from the first option is to distinguish the
+destructive &lt;code&gt;build()&lt;/code&gt; function from the non-destructive &lt;code&gt;build()&lt;/code&gt; function by
+simply &lt;em&gt;naming them differently&lt;/em&gt;. For example, we could name one &lt;code&gt;build()&lt;/code&gt; and
+the other &lt;code&gt;build_destructive()&lt;/code&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;class&lt;/span&gt; &lt;span class=&#34;nc&#34;&gt;StringBuilder&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;public&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;build_destructive&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;move&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;m_data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;// move!
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;build&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;const&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;m_data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;// copy!
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;private&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt;
+
+  &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;m_data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This would make the use of the code a little more clear, which should hopefully
+avoid errors:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;builder&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;StringBuilder&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{};&lt;/span&gt;
+&lt;span class=&#34;n&#34;&gt;builder&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;append&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(...);&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s1&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;builder&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;build_destructive&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;// &amp;lt;-- the bug is a little more obvious
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;c1&#34;&gt;// keep reusing builder
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;builder&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;append&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(...);&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s2&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;builder&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;build&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This now makes the bug from the first iteration a &lt;em&gt;little more obvious&lt;/em&gt; &amp;ndash; but
+with the one catch that you have to know the API to understand what it&amp;rsquo;s doing.
+This effectively forces a nomenclature on the codebase where only developers
+who are comfortable with the code or have read the documentation
+will be aware of what the distinction and repercussions are for this use.&lt;/p&gt;
+&lt;p&gt;A newcomer to your codebase might see &lt;code&gt;build_destructive&lt;/code&gt; but not realize that
+this actually produces a possible error downstream; it isn&amp;rsquo;t &lt;em&gt;idiomatic&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;Perhaps we can find a better solution that the average modern C++ developer may
+catch?&lt;/p&gt;
+&lt;h2 id=&#34;ref-qualifying-functions&#34;&gt;Ref-qualifying functions&lt;/h2&gt;
+&lt;p&gt;It turns out, &lt;code&gt;c++11&lt;/code&gt; actually offers something that would make this easier to
+catch from most general developers.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;c++11&lt;/code&gt; was one of the largest changes to the C++ programming language in
+decades, adding dozens of new language features that many developers don&amp;rsquo;t
+necessarily know about. Of these features is a peculiar new qualification to
+member functions called
+&lt;a href=&#34;https://en.cppreference.com/w/cpp/language/member_functions#ref-qualified_member_functions&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;ref-qualified functions&lt;/a&gt;
+.&lt;/p&gt;
+&lt;p&gt;Similar to CV-qualifications, ref-qualifications allow you to designate
+non-static member functions that will be invoked based on whether a type is
+used from the context of an lvalue-reference, or an rvalue-reference.&lt;/p&gt;
+&lt;p&gt;As example, you can have:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;struct&lt;/span&gt; &lt;span class=&#34;nc&#34;&gt;Foo&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;do_something&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cout&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;&amp;amp;-qualified&amp;#34;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;endl&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+  &lt;span class=&#34;c1&#34;&gt;//                  ^ - lvalue qualified
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;do_something&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cout&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;&amp;amp;&amp;amp;-qualified&amp;#34;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;endl&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+  &lt;span class=&#34;c1&#34;&gt;//                  ^~ - rvalue qualified
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;f&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Foo&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{};&lt;/span&gt;
+&lt;span class=&#34;n&#34;&gt;f&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;do_something&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;            &lt;span class=&#34;c1&#34;&gt;// prints &amp;#39;&amp;amp;-qualfiied&amp;#39;
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;move&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;f&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;).&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;do_something&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;// prints &amp;#39;&amp;amp;&amp;amp;-qualified&amp;#39;
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Foo&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{}.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;do_something&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;        &lt;span class=&#34;c1&#34;&gt;// prints &amp;#39;&amp;amp;&amp;amp;-qualified&amp;#39; (since this is a temporary)
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This allows you to have different behavior based on whether it&amp;rsquo;s called from
+an rvalue context compare to an lvalue context.&lt;/p&gt;
+&lt;p&gt;Ref-qualified overloads are mostly seen in general-purpose utilities like
+&lt;code&gt;std::optional&lt;/code&gt; to allow for the underlying data being accessed to have the
+same refness as the caller &amp;ndash; but it turns out this same mechanism can be used
+to help us to develop clean, idiomatic APIs.&lt;/p&gt;
+&lt;h3 id=&#34;applying-ref-qualifications-to-our-builder&#34;&gt;Applying ref-qualifications to our builder&lt;/h3&gt;
+&lt;p&gt;So how can we now apply ref-qualifications to our builder?&lt;/p&gt;
+&lt;p&gt;Simple; we offer an overload set of the &lt;code&gt;build()&lt;/code&gt; function, where one operates
+on a non-&lt;code&gt;const&lt;/code&gt; rvalue (&lt;code&gt;&amp;amp;&amp;amp;&lt;/code&gt;) qualified object, and the other operates on
+a &lt;code&gt;const&lt;/code&gt; lvalue (&lt;code&gt;&amp;amp;&lt;/code&gt;) qualified object. This is effectively fitting our first
+implementation with ref-qualifications:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;class&lt;/span&gt; &lt;span class=&#34;nc&#34;&gt;StringBuilder&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;public&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;build&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;c1&#34;&gt;//         ^~ --- new
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;move&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;m_data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;build&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;const&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;c1&#34;&gt;//               ^ --- new
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;m_data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;// copy!
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;private&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt;
+
+  &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;m_data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Lets take a look at how this changes our use of this code:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;builder&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;StringBuilder&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{};&lt;/span&gt;
+&lt;span class=&#34;n&#34;&gt;builder&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;append&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(...);&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s1&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;move&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;builder&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;).&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;build&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+
+&lt;span class=&#34;c1&#34;&gt;// keep reusing builder
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;builder&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;append&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(...);&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;// &amp;lt;-- very clear use after move!
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s2&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;builder&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;build&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;With this relatively simple transformation, we can now make detection of this
+use-after-move a lot more idiomatic and visible &amp;ndash; even to developers who are
+unfamiliar with the current code.&lt;/p&gt;
+&lt;p&gt;In general, it&amp;rsquo;s safe to assume that &lt;code&gt;std::move(x)&lt;/code&gt; will move the contents of
+&lt;code&gt;x&lt;/code&gt; in some way. So it stands to reason that a call of
+&lt;code&gt;std::move(builder).build()&lt;/code&gt; will also be idiomatic to assume that &lt;code&gt;builder&lt;/code&gt;
+is somehow being destructively mutated after the call &amp;ndash; which will result in a
+use-after-move. This now communicates the destructiveness from the API
+surface-area.&lt;/p&gt;
+&lt;p&gt;Similarly, a call of &lt;code&gt;builder.build()&lt;/code&gt; is safe to assume will not result in an
+use-after-move effects.&lt;/p&gt;
+&lt;p&gt;Ultimately, this approach actually lets us offer move-semantics in a way that
+won&amp;rsquo;t subtly break clients &amp;ndash; all while still allowing for object reuse to
+consumers who desire it. It also &lt;em&gt;forces&lt;/em&gt; the client of this API to think about
+what they are doing &amp;ndash; since the only way to get the data out efficiently is to
+call &lt;code&gt;std::move&lt;/code&gt;, which should be an early warning sign of its destructiveness.&lt;/p&gt;
+&lt;h2 id=&#34;closing-remarks&#34;&gt;Closing Remarks&lt;/h2&gt;
+&lt;p&gt;The key take-away from this is that ref-qualified functions are powerful in
+their ability to express ownership transfer. Not only does this present a
+lightweight function to clients by allowing them to reuse the internal state
+of the object &amp;ndash; it also allows this to be done so in an idiomatic way that
+would stand out to developers and static-analysis tools if misused.&lt;/p&gt;
+&lt;p&gt;Next time you want to allow both copying and moving of a class&#39; member, consider
+offering a ref-qualified overload set!&lt;/p&gt;</description>
+    </item>
     
     <item>
       <title>Final Poetry</title>
@@ -951,10 +1179,8 @@ where my top tags are &lt;code&gt;c++&lt;/code&gt; and &lt;code&gt;language-lawy
 projects as all of this has to be done during my spare time. Even these blog
 posts have to be done during what little time I have available to contribute.&lt;/p&gt;
 &lt;p&gt;This is why &lt;strong&gt;your support is important and can make a difference&lt;/strong&gt;.&lt;/p&gt;
-&lt;p&gt;If you like this blog, or any of my work &amp;ndash; please consider contributing to me
-through Github Sponsors!&lt;/p&gt;
-&lt;p&gt;If you like my works and either you’re using them in your real world products,
-or if you just want to help me &amp;ndash; please consider
+&lt;p&gt;If you like this blog, like and use my work in any real-world products, or
+even just want to help support me &amp;ndash; please consider
 &lt;a href=&#34;https://github.com/sponsors/bitwizeshift&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;becoming a sponsor&lt;/a&gt;
 
 which will allow me to spend more time on the projects you love.&lt;/p&gt;
