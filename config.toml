@@ -35,6 +35,7 @@ github = "bitwizeshift"
 linkedin = "matthewrodusek"
 email = "bitwizeshift@rodusek.com"
 stackoverflow = "1678770"
+twitter = "bitwizeshift"
 
 [params.github]
 username = "bitwizeshift"
@@ -45,7 +46,7 @@ enable = false  # Comments are enabled per blog post
 
 [params.syntax]
 use = "none"
-theme = "dracula"
+theme = "github-gist"
 darkTheme = "xcode-dark"
 
 [params.nav]
