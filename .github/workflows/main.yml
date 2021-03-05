@@ -27,7 +27,7 @@ jobs:
 
       - name: "Generate Static Pages"
         run: |
-          hugo -D --destination ${{ github.workspace }}/dist
+          hugo --cleanDestinationDir -D --destination ${{ github.workspace }}/dist
 
       - name: "Commit Changes"
         run: |
