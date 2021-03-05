@@ -1,3 +1,6 @@
+# ALl robots allowed
 User-agent: *
-Disallow: 
-Sitemap: /sitemap.xml
+Disallow:
+
+# Sitemap file
+Sitemap:https://bitwizeshift.github.io/sitemap.xml

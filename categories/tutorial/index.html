@@ -1,22 +1,135 @@
 <!DOCTYPE html>
 <html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.81.0" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="supported-color-schemes" content="light dark"><title>tutorial&nbsp;&ndash;&nbsp;@bitwizeshift on software</title><link rel="stylesheet" href="/css/core.min.fd6ad2ebf18fd9150a2d919fe714246102d9923efaf164ed444d5909d5ff5e3f557731aff68c11c88683f8b3d8c86ed1.css" integrity="sha384-/WrS6/GP2RUKLZGf5xQkYQLZkj768WTtRE1ZCdX/Xj9VdzGv9owRyIaD&#43;LPYyG7R"><link rel="alternate" type="application/rss+xml" href="/categories/tutorial/index.xml" title="@bitwizeshift on software" /><meta name="twitter:card" content="summary" />
+<meta name="supported-color-schemes" content="light dark"><title>tutorial&nbsp;&ndash;&nbsp;@bitwizeshift on software</title><link rel="stylesheet" href="/css/core.min.926318ac86aa87bfee699f8249c632dd56e5fa9c691ec2b7cdc55b3b9fe55b167b6edff9dac71a353d0f3b9e6d4888de.css" integrity="sha384-kmMYrIaqh7/uaZ&#43;CScYy3Vbl&#43;pxpHsK3zcVbO5/lWxZ7bt/52scaNT0PO55tSIje"><link rel="alternate" type="application/rss+xml" href="/categories/tutorial/index.xml" title="@bitwizeshift on software" /><meta name="twitter:card" content="summary" />
 <meta name="twitter:title" content="tutorial" /><body><header id="header">
   <div class="header wrap">
     <div class="header left-side"><a class="site home" href="/"><span class="site name">@bitwizeshift on software</span></a>
     </div>
     <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/about">About Me</a><a class="nav item" href="/tags">Tags</a><a class="nav item" href="/glossary">Glossary</a><a class="nav item" href="/license">License</a></nav></div></span></div></header>
-<section id="content"><section class="article header"><h1>tutorial</h1></section><ul class="note list"><li class="item"><a class="note" href="/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type/">
-      <p class="note title">Creating a Fast and Efficient Delegate Type (Part 1)</p><p class="note content">It’s often desirable when working in C++ to create callbacks that never leave a certain lifetime, and only bind functions or function pointers. The C++ standard only offers <code>std::function</code> and <code>std::packaged_task</code>, both of which are more heavy than they need to be.
-We can do better. Lets produce a better alternative to the existing solutions that could satisfy this problem in a nice and coherent way.</p></a><p class="note labels"><a class="category" href="/categories/basic-templates/">basic-templates</a><a class="category" href="/categories/tutorial/">tutorial</a><a class="category" href="/categories/c&#43;&#43;11/">c&#43;&#43;11</a><a class="category" href="/categories/c&#43;&#43;14/">c&#43;&#43;14</a></p>
-    <p class="note labels"><a class="tag" href="/tags/templates/">templates</a></p></li><li class="item"><a class="note" href="/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2/">
-      <p class="note title">Creating a Fast and Efficient Delegate Type (Part 2)</p><p class="note content">In the previous post we saw how we could build a simple and light-weight <code>Delegate</code> type that binds free functions, and member functions; however there are several notable limitation. Lets expand on this and make it even better using <code>c++17</code> features.</p></a><p class="note labels"><a class="category" href="/categories/intermediate-templates/">intermediate-templates</a><a class="category" href="/categories/tutorial/">tutorial</a><a class="category" href="/categories/c&#43;&#43;17/">c&#43;&#43;17</a></p>
-    <p class="note labels"><a class="tag" href="/tags/templates/">templates</a></p></li><li class="item"><a class="note" href="/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3/">
-      <p class="note title">Creating a Fast and Efficient Delegate Type (Part 3)</p><p class="note content">In the previous post we reworked our <code>Delegate</code> object into something more modern and easy-to-use by using <code>c++17</code> – but is this utility zero-overhead? In this post we will look at how to optimize this into a true zero-overhead utility.</p></a><p class="note labels"><a class="category" href="/categories/intermediate-templates/">intermediate-templates</a><a class="category" href="/categories/tutorial/">tutorial</a><a class="category" href="/categories/c&#43;&#43;17/">c&#43;&#43;17</a></p>
-    <p class="note labels"><a class="tag" href="/tags/performance/">performance</a><a class="tag" href="/tags/optimizing/">optimizing</a><a class="tag" href="/tags/templates/">templates</a></p></li></ul></section><footer id="footer">
+<section id="content"><article class="article article-container entry"><header class="article header">
+  <h1>tutorial</h1>
+</header><section class="pages article entry-content">
+
+  
+    
+      
+        <a class="category" href="#basic-templates">basic-templates (1)</a>
+      
+        <a class="category" href="#c%2b%2b11">c&#43;&#43;11 (1)</a>
+      
+        <a class="category" href="#c%2b%2b14">c&#43;&#43;14 (1)</a>
+      
+        <a class="category" href="#c%2b%2b17">c&#43;&#43;17 (2)</a>
+      
+        <a class="category" href="#intermediate-templates">intermediate-templates (2)</a>
+      
+        <a class="category" href="#tutorial">tutorial (3)</a>
+      
+    
+  
+
+  
+
+  
+
+</section>
+
+  
+    
+      
+        <header class="list-entry article header">
+          <h2 class="category-title" id="basic-templates">basic-templates (1)</h2>
+        </header>
+        <section class="pages article entry-content">
+          
+          <p class="article entry-date date"><time datetime="2021-02-24 20:03:14 -0500 -0500" title="2021-02-24 20:03:14 -0500 -0500">February 24, 2021</time>:
+            <a href="https://bitwizeshift.github.io/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type/">Creating a Fast and Efficient Delegate Type (Part 1)</a>
+          </p>
+          
+        </section>
+      
+        <header class="list-entry article header">
+          <h2 class="category-title" id="c&#43;&#43;11">c&#43;&#43;11 (1)</h2>
+        </header>
+        <section class="pages article entry-content">
+          
+          <p class="article entry-date date"><time datetime="2021-02-24 20:03:14 -0500 -0500" title="2021-02-24 20:03:14 -0500 -0500">February 24, 2021</time>:
+            <a href="https://bitwizeshift.github.io/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type/">Creating a Fast and Efficient Delegate Type (Part 1)</a>
+          </p>
+          
+        </section>
+      
+        <header class="list-entry article header">
+          <h2 class="category-title" id="c&#43;&#43;14">c&#43;&#43;14 (1)</h2>
+        </header>
+        <section class="pages article entry-content">
+          
+          <p class="article entry-date date"><time datetime="2021-02-24 20:03:14 -0500 -0500" title="2021-02-24 20:03:14 -0500 -0500">February 24, 2021</time>:
+            <a href="https://bitwizeshift.github.io/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type/">Creating a Fast and Efficient Delegate Type (Part 1)</a>
+          </p>
+          
+        </section>
+      
+        <header class="list-entry article header">
+          <h2 class="category-title" id="c&#43;&#43;17">c&#43;&#43;17 (2)</h2>
+        </header>
+        <section class="pages article entry-content">
+          
+          <p class="article entry-date date"><time datetime="2021-02-26 22:19:51 -0500 -0500" title="2021-02-26 22:19:51 -0500 -0500">February 26, 2021</time>:
+            <a href="https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3/">Creating a Fast and Efficient Delegate Type (Part 3)</a>
+          </p>
+          
+          <p class="article entry-date date"><time datetime="2021-02-26 22:18:32 -0500 -0500" title="2021-02-26 22:18:32 -0500 -0500">February 26, 2021</time>:
+            <a href="https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2/">Creating a Fast and Efficient Delegate Type (Part 2)</a>
+          </p>
+          
+        </section>
+      
+        <header class="list-entry article header">
+          <h2 class="category-title" id="intermediate-templates">intermediate-templates (2)</h2>
+        </header>
+        <section class="pages article entry-content">
+          
+          <p class="article entry-date date"><time datetime="2021-02-26 22:19:51 -0500 -0500" title="2021-02-26 22:19:51 -0500 -0500">February 26, 2021</time>:
+            <a href="https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3/">Creating a Fast and Efficient Delegate Type (Part 3)</a>
+          </p>
+          
+          <p class="article entry-date date"><time datetime="2021-02-26 22:18:32 -0500 -0500" title="2021-02-26 22:18:32 -0500 -0500">February 26, 2021</time>:
+            <a href="https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2/">Creating a Fast and Efficient Delegate Type (Part 2)</a>
+          </p>
+          
+        </section>
+      
+        <header class="list-entry article header">
+          <h2 class="category-title" id="tutorial">tutorial (3)</h2>
+        </header>
+        <section class="pages article entry-content">
+          
+          <p class="article entry-date date"><time datetime="2021-02-26 22:19:51 -0500 -0500" title="2021-02-26 22:19:51 -0500 -0500">February 26, 2021</time>:
+            <a href="https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3/">Creating a Fast and Efficient Delegate Type (Part 3)</a>
+          </p>
+          
+          <p class="article entry-date date"><time datetime="2021-02-26 22:18:32 -0500 -0500" title="2021-02-26 22:18:32 -0500 -0500">February 26, 2021</time>:
+            <a href="https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2/">Creating a Fast and Efficient Delegate Type (Part 2)</a>
+          </p>
+          
+          <p class="article entry-date date"><time datetime="2021-02-24 20:03:14 -0500 -0500" title="2021-02-24 20:03:14 -0500 -0500">February 24, 2021</time>:
+            <a href="https://bitwizeshift.github.io/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type/">Creating a Fast and Efficient Delegate Type (Part 1)</a>
+          </p>
+          
+        </section>
+      
+    
+  
+
+  
+
+  
+
+</article></section><footer id="footer">
   <div class="footer-wrap"><section class="social">
-  <a class="link" href="/index.xml" title="RSS"><span class="sr-only">RSS</span><span class="iconfont icon-rss"></span></a><a class="link" href="mailto:bitwizeshift@rodusek.com" title="Email me"><span class="sr-only">Email me</span><span class="iconfont icon-envelope-open-o"></span></a><a class="link" href="https://github.com/bitwizeshift" title="Github"><span class="sr-only">Github</span><span class="iconfont icon-github"></span></a><a class="link" href="https://linkedin.com/in/matthewrodusek" title="LinkedIn"><span class="sr-only">LinkedIn</span><span class="iconfont icon-linkedin"></span></a><a class="link" href="https://stackoverflow.com/users/1678770" title="StackOverflow"><span class="sr-only">StackOverflow</span><span class="iconfont icon-stackoverflow"></span></a></section>
+  <a class="link" href="/index.xml" title="RSS"><span class="sr-only">RSS</span><span class="iconfont icon-rss"></span></a><a class="link" href="mailto:bitwizeshift@rodusek.com" title="Email me"><span class="sr-only">Email me</span><span class="iconfont icon-envelope-open-o"></span></a><a class="link" href="https://github.com/bitwizeshift" title="Github"><span class="sr-only">Github</span><span class="iconfont icon-github"></span></a><a class="link" href="https://twitter.com/bitwizeshift" title="Twitter"><span class="sr-only">Twitter</span><span class="iconfont icon-twitter"></span></a><a class="link" href="https://linkedin.com/in/matthewrodusek" title="LinkedIn"><span class="sr-only">LinkedIn</span><span class="iconfont icon-linkedin"></span></a><a class="link" href="https://stackoverflow.com/users/1678770" title="StackOverflow"><span class="sr-only">StackOverflow</span><span class="iconfont icon-stackoverflow"></span></a></section>
 <p class="copyright">©2021 Matthew Rodusek.</p>
 <p class="powerby"><span>Powered&nbsp;by&nbsp;</span><a href="https://gohugo.io"
     target="_blank" rel="noopener noreferrer">Hugo</a><span>&nbsp;&amp;&nbsp;</span><a href="https://themes.gohugo.io/hugo-notepadium/"
