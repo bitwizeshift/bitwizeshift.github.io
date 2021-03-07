@@ -52,8 +52,9 @@ posts have to be done during what little time I have available to contribute.
 This is why **your support is important and can make a difference**.
 
 If you like this blog, like and use my work in any real-world products, or
-even just want to help support me -- please consider
-[becoming a sponsor](https://github.com/sponsors/bitwizeshift)
+even just want to help support me -- please consider becoming
+[a sponsor](https://github.com/sponsors/bitwizeshift), or even just
+[buying me a coffee](https://buymeacoffee.com/dsq3XCcBE)
 which will allow me to spend more time on the projects you love.
 
 **Thank you.**
