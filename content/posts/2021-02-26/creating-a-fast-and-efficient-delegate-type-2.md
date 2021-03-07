@@ -11,6 +11,8 @@ light-weight `Delegate` type that binds free functions, and member functions;
 however there are several notable limitation. Lets expand on this and make it
 even better using `c++17` features.
 "
+github:
+  repository: delegate
 ---
 
 {{<info>}}

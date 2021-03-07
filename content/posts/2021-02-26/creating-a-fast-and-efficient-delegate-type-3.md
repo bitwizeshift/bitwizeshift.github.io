@@ -12,6 +12,8 @@ modern and easy-to-use by using `c++17` -- but is this utility zero-overhead?
 In this post we will look at how to optimize this into a true zero-overhead
 utility.
 "
+github:
+  repository: delegate
 ---
 
 {{<info>}}
