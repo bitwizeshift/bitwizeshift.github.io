@@ -3,7 +3,7 @@ title: "Final Poetry"
 subtitle: "An entry in the C++wtf segment"
 date: 2021-02-28T01:23:18-05:00
 draft: false
-tags: [esoteric, language-lawyer]
+tags: [esoteric, language-lawyer, funny]
 categories: []
 # series: [cppwtf]
 ---

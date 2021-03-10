@@ -3,8 +3,8 @@ title: "Creating a Fast and Efficient Delegate Type (Part 1)"
 subtitle: "A simple solution to lightweight function binding"
 date: 2021-02-24T20:03:14-05:00
 draft: false
-tags: [templates]
-categories: [basic-templates, tutorial, c++11, c++14]
+tags: [templates, callback, c++11, c++14]
+categories: [basic-templates, tutorial]
 series: [delegate]
 summary: "It's often desirable when working in C++ to create callbacks that
 never leave a certain lifetime, and only bind functions or function pointers.

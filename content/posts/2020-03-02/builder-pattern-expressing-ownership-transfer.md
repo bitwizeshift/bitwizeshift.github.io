@@ -3,8 +3,8 @@ title: "Builder Pattern: Expressing ownership transfer"
 subtitle: "A simple underused approach to express moving members out of an object"
 date: 2021-03-02T17:06:40-05:00
 draft: false
-tags: [c++11, ref-qualifiers]
-categories: []
+tags: [c++11, ref-qualifiers, design]
+categories: [design-patterns]
 ---
 
 The Builder pattern is a common design in software development for late-binding
