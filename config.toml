@@ -10,6 +10,10 @@ enableGitInfo = true
 # Enable Disqus
 # disqusShortname = "XXX"
 
+[author]
+  name = "Matthew Rodusek"
+  email = "bitwizeshift@rodusek.com"
+
 [taxonomies]
   category = "categories"
   series = "series"
@@ -62,10 +66,6 @@ url = "/about"
 [[params.nav.custom]]
 title = "Tags"
 url = "/tags"
-
-[[params.nav.custom]]
-title = "Glossary"
-url = "/glossary"
 
 [[params.nav.custom]]
 title = "License"
