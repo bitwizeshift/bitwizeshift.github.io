@@ -12,6 +12,423 @@
     
     
     <item>
+      <title>Getting an Unmangled Type Name at Compile Time</title>
+      <link>https://bitwizeshift.github.io/posts/2020-03-09/getting-an-unmangled-type-name-at-compile-time/</link>
+      <pubDate>Tue, 09 Mar 2021 19:21:59 -0500</pubDate>
+      
+      <guid>https://bitwizeshift.github.io/posts/2020-03-09/getting-an-unmangled-type-name-at-compile-time/</guid>
+      <description>&lt;p&gt;Getting the name of a type in C++ is a hassle. For something that should be
+trivially known by the compiler at compile-time, the closest thing we have to
+getting the type in a &lt;strong&gt;cross-platform&lt;/strong&gt; way is to use
+&lt;a href=&#34;https://en.cppreference.com/w/cpp/types/type_info/name&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;std::type_info::name&lt;/code&gt;&lt;/a&gt;
+ which
+is neither at compile-time, nor is it guaranteed to be human-readable.&lt;/p&gt;
+&lt;p&gt;In fact, both GCC and Clang actually return the compiler&amp;rsquo;s &lt;strong&gt;mangled&lt;/strong&gt; name
+rather than the human-readable name we are used to. Let&amp;rsquo;s try to make something
+better using the modern utilities from &lt;a class=&#34;tag link&#34; href=&#34;https://bitwizeshift.github.io/tags/c&amp;#43;&amp;#43;17/&#34;&gt;c&amp;#43;&amp;#43;17&lt;/a&gt;
+ and a little creative problem
+solving!&lt;/p&gt;
+&lt;aside class=&#34;table-of-contents&#34;&gt;
+  &lt;header class=&#34;table-of-contents navigation-header&#34;&gt;
+    &lt;h2&gt;Table of Contents&lt;/h2&gt;
+  &lt;/header&gt;
+  &lt;nav id=&#34;TableOfContents&#34;&gt;
+  &lt;ul&gt;
+    &lt;li&gt;&lt;a href=&#34;#reflecting-on-the-type-name&#34;&gt;Reflecting on the Type Name&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#finding-a-string-at-compile-time&#34;&gt;Finding a String at Compile Time&lt;/a&gt;
+      &lt;ul&gt;
+        &lt;li&gt;&lt;a href=&#34;#macros&#34;&gt;Macros&lt;/a&gt;&lt;/li&gt;
+        &lt;li&gt;&lt;a href=&#34;#function-name&#34;&gt;Function Name&lt;/a&gt;&lt;/li&gt;
+      &lt;/ul&gt;
+    &lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#exploiting-the-names-of-functions&#34;&gt;Exploiting the Names of Functions&lt;/a&gt;
+      &lt;ul&gt;
+        &lt;li&gt;&lt;a href=&#34;#format&#34;&gt;Format&lt;/a&gt;&lt;/li&gt;
+        &lt;li&gt;&lt;a href=&#34;#parsing-a-first-attempt&#34;&gt;Parsing: A first attempt&lt;/a&gt;&lt;/li&gt;
+        &lt;li&gt;&lt;a href=&#34;#iteration-optimize-out-unused-string-segments&#34;&gt;Iteration: Optimize out unused string segments&lt;/a&gt;&lt;/li&gt;
+        &lt;li&gt;&lt;a href=&#34;#fixing-our-dangling-pointer&#34;&gt;Fixing our dangling pointer&lt;/a&gt;&lt;/li&gt;
+        &lt;li&gt;&lt;a href=&#34;#supporting-other-compilers&#34;&gt;Supporting other compilers&lt;/a&gt;&lt;/li&gt;
+      &lt;/ul&gt;
+    &lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#a-working-solution&#34;&gt;A Working Solution&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a href=&#34;#closing-thoughts&#34;&gt;Closing Thoughts&lt;/a&gt;&lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/nav&gt;
+&lt;/aside&gt;
+
+&lt;h2 id=&#34;reflecting-on-the-type-name&#34;&gt;Reflecting on the Type Name&lt;/h2&gt;
+&lt;p&gt;The C++ programming language lacks any real form of reflection, even all the
+way up to c++20. Some &lt;em&gt;reflection-like&lt;/em&gt; functionalities can be done by
+leveraging strange or obscure techniques through templates; but overall these
+effects tend to be quite limited.&lt;/p&gt;
+&lt;p&gt;So how can we get the type name without reflection?&lt;/p&gt;
+&lt;p&gt;Realistically, we shouldn&amp;rsquo;t actually &lt;em&gt;need&lt;/em&gt; reflection for this purpose; all
+we need is something the compiler can give us that &lt;em&gt;contains&lt;/em&gt; the type name
+in a string. As long as the string is known at compile time, we can then use
+modern C++ utilities to &lt;em&gt;parse&lt;/em&gt; the string to deliver it to us also at
+compile-time.&lt;/p&gt;
+&lt;h2 id=&#34;finding-a-string-at-compile-time&#34;&gt;Finding a String at Compile Time&lt;/h2&gt;
+&lt;p&gt;We know that &lt;code&gt;typeid&lt;/code&gt;/&lt;code&gt;std::type_info::name&lt;/code&gt; is out &amp;ndash; since this doesn&amp;rsquo;t
+operate at compile-time or yield us a reasonable string.
+There aren&amp;rsquo;t any specific language constructs explicitly giving us the type
+name outside of &lt;code&gt;typeid&lt;/code&gt;, so we will have to consider other sources of
+information.&lt;/p&gt;
+&lt;p&gt;Checking the C++ standard, the only other sources of strings that may exist
+at compile-time come from the preprocessor and other builtins; so lets start
+there.&lt;/p&gt;
+&lt;h3 id=&#34;macros&#34;&gt;Macros&lt;/h3&gt;
+&lt;p&gt;One somewhat obvious approach to getting a type name as a string is to leverage
+the macro preprocessor to stringize the input. For example:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define TYPE_NAME(x) #x
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This will work for cases where the type is always statically expressed, such as:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cout&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;TYPE_NAME&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;endl&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;which will print&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;std::string
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;But it falls short on indirect contexts where you only have the &lt;code&gt;T&lt;/code&gt; type, or
+you are deducing the type from an expression! For example:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;typename&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;print&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;x&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cout&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;TYPE_NAME&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;endl&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cout&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;TYPE_NAME&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;decltype&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;x&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;endl&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;will print&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;T
+decltype(x)
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Which is not correct. So the preprocessor is unfortunately not an option here.
+What else could we use?&lt;/p&gt;
+&lt;p&gt;Perhaps we could extract something that &lt;em&gt;contains&lt;/em&gt; the type name in the string
+&amp;ndash; like getting the name of a function?&lt;/p&gt;
+&lt;h3 id=&#34;function-name&#34;&gt;Function Name&lt;/h3&gt;
+&lt;p&gt;If we had a function that contains the type we want to stringize; perhaps
+something like:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;typename&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;some_function&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Where a call of &lt;code&gt;some_function&amp;lt;foo&amp;gt;()&lt;/code&gt; would produce a function name of
+&lt;code&gt;&amp;quot;some_function&amp;lt;foo&amp;gt;()&amp;quot;&lt;/code&gt;, then we could simply &lt;em&gt;parse&lt;/em&gt; it to get the type name
+out. Does C++ have such a utility?&lt;/p&gt;
+&lt;p&gt;Standard C++ offers us a hidden variable called
+&lt;a href=&#34;https://en.cppreference.com/w/c/language/function_definition#func&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;__func__&lt;/code&gt;&lt;/a&gt;
+, which
+behaves as a constant &lt;code&gt;char&lt;/code&gt; array defined in each function scope. This
+satisfies the  requirement that it be at compile-time; however its notably
+very limited. &lt;code&gt;__func__&lt;/code&gt; is only defined to be the &lt;em&gt;name&lt;/em&gt; of the function, but
+it does not carry any other details about the function &amp;ndash; such as overload
+information or template information, since &lt;code&gt;__func__&lt;/code&gt; was actually inherited
+from C99 which has neither.&lt;/p&gt;
+&lt;p&gt;However, this doesn&amp;rsquo;t mean its the end. If you check in your trusty compiler
+manual(s), you will find that all major compilers offer a &lt;code&gt;__func__&lt;/code&gt; equivalent
+for C++ that also contains overload and template information!&lt;/p&gt;
+&lt;h2 id=&#34;exploiting-the-names-of-functions&#34;&gt;Exploiting the Names of Functions&lt;/h2&gt;
+&lt;p&gt;GCC and Clang both offer a &lt;code&gt;__func__&lt;/code&gt;-like variable for C++ which contains
+more detailed information as an extension called
+&lt;a href=&#34;https://gcc.gnu.org/onlinedocs/gcc/Function-Names.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;__PRETTY_FUNCTION__&lt;/code&gt;&lt;/a&gt;
+.
+MSVC also offers a similar/equivalent one called
+&lt;a href=&#34;https://docs.microsoft.com/en-us/cpp/preprocessor/predefined-macros?view=msvc-160&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;__FUNCSIG__&lt;/code&gt;&lt;/a&gt;
+.&lt;/p&gt;
+&lt;p&gt;These act as &lt;strong&gt;compiler extensions&lt;/strong&gt; and as such are not &amp;ndash; strictly speaking &amp;ndash;
+portable; however this does not mean that we can&amp;rsquo;t wrap this into a useful
+way. Lets try to make a proof-of-concept using GCC&amp;rsquo;s &lt;code&gt;__PRETTY_FUNCTION__&lt;/code&gt;.&lt;/p&gt;
+&lt;h3 id=&#34;format&#34;&gt;Format&lt;/h3&gt;
+&lt;p&gt;The first thing we need to know is what GCC&amp;rsquo;s format is when printing a
+&lt;code&gt;__PRETTY_FUNCTION__&lt;/code&gt;. Lets write a simple test:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;typename&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;test&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;__PRETTY_FUNCTION__&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+
+&lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+
+&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cout&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;test&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Yields&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;std::string_view test() [with T = std::__cxx11::basic_string&amp;lt;char&amp;gt;; std::string_view = std::basic_string_view&amp;lt;char&amp;gt;]
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Which means that, at least for GCC, we need to find where &lt;code&gt;with T = &lt;/code&gt; begins
+and &lt;code&gt;;&lt;/code&gt; ends to get the type name in between!&lt;/p&gt;
+&lt;figure class=&#34;image-container&#34;&gt;&lt;span class=&#34;link&#34; &gt;&lt;a href=&#34;https://godbolt.org/#g:!%28%28g:!%28%28g:!%28%28h:codeEditor,i:%28fontScale:14,j:1,lang:c%2B%2B,selection:%28endColumn:1,endLineNumber:15,positionColumn:1,positionLineNumber:15,selectionStartColumn:1,selectionStartLineNumber:15,startColumn:1,startLineNumber:15%29,source:%27%23include&amp;#43;%3Ciostream%3E%0A%23include&amp;#43;%3Cstring%3E%0A%23include&amp;#43;%3Cstring_view%3E%0A%0Atemplate&amp;#43;%3Ctypename&amp;#43;T%3E%0Aauto&amp;#43;test%28%29&amp;#43;-%3E&amp;#43;std::string_view%0A%7B%0A&amp;#43;&amp;#43;return&amp;#43;__PRETTY_FUNCTION__%3B%0A%7D%0A%0Aauto&amp;#43;main%28%29&amp;#43;-%3E&amp;#43;int&amp;#43;%7B%0A&amp;#43;&amp;#43;&amp;#43;&amp;#43;std::cout&amp;#43;%3C%3C&amp;#43;test%3Cstd::string%3E%28%29%3B%0A%7D%0A%0A%27%29,l:%275%27,n:%270%27,o:%27C%2B%2B&amp;#43;source&amp;#43;%231%27,t:%270%27%29%29,k:51.962323390894824,l:%274%27,n:%270%27,o:%27%27,s:0,t:%270%27%29,%28g:!%28%28h:compiler,i:%28compiler:g81,filters:%28b:%270%27,binary:%271%27,commentOnly:%270%27,demangle:%270%27,directives:%270%27,execute:%271%27,intel:%270%27,libraryCode:%270%27,trim:%271%27%29,fontScale:14,j:1,lang:c%2B%2B,libs:!%28%29,options:%27-std%3Dc%2B%2B17&amp;#43;-O3%27,selection:%28endColumn:1,endLineNumber:1,positionColumn:1,positionLineNumber:1,selectionStartColumn:1,selectionStartLineNumber:1,startColumn:1,startLineNumber:1%29,source:1%29,l:%275%27,n:%270%27,o:%27x86-64&amp;#43;gcc&amp;#43;8.1&amp;#43;%28Editor&amp;#43;%231,&amp;#43;Compiler&amp;#43;%231%29&amp;#43;C%2B%2B%27,t:%270%27%29,%28h:executor,i:%28argsPanelShown:%271%27,compilationPanelShown:%270%27,compiler:gsnapshot,compilerOutShown:%270%27,execArgs:%27%27,execStdin:%27%27,fontScale:14,j:1,lang:c%2B%2B,libs:!%28%29,options:%27-std%3Dc%2B%2B17&amp;#43;-O3%27,source:1,stdinPanelShown:%271%27,wrap:%271%27%29,l:%275%27,n:%270%27,o:%27x86-64&amp;#43;gcc&amp;#43;%28trunk%29&amp;#43;Executor&amp;#43;%28Editor&amp;#43;%231%29&amp;#43;C%2B%2B%27,t:%270%27%29%29,header:%28%29,k:48.03767660910518,l:%274%27,m:100,n:%270%27,o:%27%27,s:1,t:%270%27%29%29,l:%272%27,m:100,n:%270%27,o:%27%27,t:%270%27%29%29,version:4&#34;
+        target=&#34;_blank&#34;&gt;&lt;img class=&#34;img&#34; src=&#34;https://img.shields.io/badge/try-online-blue.svg&#34;
+         alt=&#34;Try Online&#34;/&gt;&lt;/a&gt;&lt;/span&gt;
+&lt;/figure&gt;
+
+&lt;h3 id=&#34;parsing-a-first-attempt&#34;&gt;Parsing: A first attempt&lt;/h3&gt;
+&lt;p&gt;So lets try to write a simple parser that works at compile-time.
+For this we can use &lt;code&gt;&amp;lt;string_view&amp;gt;&lt;/code&gt; for the heavy-lifting.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;typename&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;type_name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;prefix&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;[with T = &amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;suffix&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;;&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;function&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;__PRETTY_FUNCTION__&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;function&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;find&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;prefix&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;prefix&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;function&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;rfind&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;suffix&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+
+  &lt;span class=&#34;k&#34;&gt;static_assert&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;result&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;function&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;substr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;));&lt;/span&gt;
+
+  &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;result&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The algorithm is simple:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Find where the prefix starts, and get the index at the end of it&lt;/li&gt;
+&lt;li&gt;Find where the suffix ends, and get the index at the beginning of it&lt;/li&gt;
+&lt;li&gt;Create a substring between those two indices&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Lets test if it works. A simple program of:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cout&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;type_name&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;endl&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;now prints:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;std::__cxx11::basic_string&amp;lt;char&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;figure class=&#34;image-container&#34;&gt;&lt;span class=&#34;link&#34; &gt;&lt;a href=&#34;https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAM1QDsCBlZAQwBtMQBGAFlICsupVs1qhkAUgBMAISnTSAZ0ztkBPHUqZa6AMKpWAVwC2tENwAcpLegAyeWpgByxgEaZiIAJykADqgWE6rR6hiZmln4BanR2Ds5Gbh7eSirRtAwEzMQEIcamForKmKpBGVkEsU6u7l6Kmdm5YQUK9RX2VQk1ngCUiqgGxMgcAORSAMz2yIZYANTiYzrqLcSYzEbz2OIADACC45PTmHMLy/bAG9t7khO0Uwaz8zqnogD6AG54mADuF7uXBJgjD5hADjjoCABPHxaNZHAAqvx2aFoLUwAA8fMQZswDEQZpDoS9aLCIN0ZgBaDYzFroEAgZ7Ad6fH5/ADssl2MxmyNRGKxOLxmMwVDwaK5xwAItSCLT6QRiGcmd9xOypJJxABWaRfQgIGZwyVzSTq1kS%2BYcnZcnkAvnY3GoakGKgisVc%2BZSml0hlKn6q43mtUqs1jC1Wui8zF2vFUAy3NKGz1yhWvD7K9kvF4ABQAStg4XCAJovABiAFVHDo4QBJADyjgzQYDf053PDNsjAodLXKhpjcaCADoRdoIEKXWS5DMx6KBwEAF6YUlNy2tlHt/n2mbWXuxkp0AfEYfoCAKJ3j5eXLndtTIF7MBRKbIn1pgrfaboXlvW9EdzcrU%2BsAQO79vup4uMsz7lKQMwQNu5LSuU3QfiGlyXjMKwEAMtDoZgAEEBepqobsnYzEYzD2KSFJUvYQEqqG4qJmguJgo8%2BJQpgRKwo8iYMhslGPKxibWKwBFmrswy9KwIDDBqwykKYwxbHJqDSTociTgo/SDEc4ycHJBDSUpSGkAA1iAGqcAOngAGzXNcYyeFs5ieBYki8FJwzcHJClKaQKnDHJCggFspAGYpEmkHAsBIGgQJ4OwZAUBAsU%2BPFNTAOYnCkCKgHuEFEAuIZckuPYWQQtJemkLFRhaAQNa0Kw5XhaQWBkaI7BFS1eArCUby4Z16LFLiIyVTRyidaweAuMQZV6FgnXyngRgVRFND0EwbAcDw/CCMIogoOpMhCFNQWQL0qA%2BGkQXDOSNLuhIMhyJwrIUjWYyBUUe6mLB2iNKYWXWJU8SJIIkSBHQf2g/44O0ED1QeFlKTFGkZQNPoeSCEjX2o20cTw5jrSQ4jrRw50CO9JpAxDFwknSbJ8mdf5aLmNZ5LWdwMzAMgyAzOYA6cDBuCECQRpjFlMx6HFCWi5wZJqY9Mj6UVvQQEgg3IPaiWUFkwAKJmIjKAwCCoF8CmVSl8XMGk%2BsOKwRsmz5ckWwlIC68SPgKMbBBVagUvuDWuL26bA1osUOzELr0lyerGT4ApclrYwLAddtAhZXtYiHfIk3gfA52XUE123TK91Z89r3vX0VNbXUcc24bxvB8MlVfDNPgrbTMneYz0nM6z7Oc9zMHyrGJlktgoca0QWIQEL08y3LWdK%2BFxkIKsWAeKSpnhAOWxjKy1kH9ZWyeJwWwWZYHleaQy1nyFjt%2BVHijBaFyud5Icm31s989wFr8r70PqxAAgaG4EAA%3D&#34;
+        target=&#34;_blank&#34;&gt;&lt;img class=&#34;img&#34; src=&#34;https://img.shields.io/badge/try-online-blue.svg&#34;
+         alt=&#34;Try Online&#34;/&gt;&lt;/a&gt;&lt;/span&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Great!
+Before we celebrate, we should check to make sure that the compiler isn&amp;rsquo;t
+embedding the entire function name &amp;ndash; otherwise we might bloat the executable
+with unused strings. Otherwise, this would be quite the trade-off, and not
+zero-overhead.&lt;/p&gt;
+&lt;p&gt;Checking the generated assembly, we can see that the string &lt;em&gt;does exist&lt;/em&gt; in its
+complete form, even at &lt;code&gt;-O3&lt;/code&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&#34;language-assembly&#34; data-lang=&#34;assembly&#34;&gt;type_name&amp;lt;std::__cxx11::basic_string&amp;lt;char, std::char_traits&amp;lt;char&amp;gt;, std::allocator&amp;lt;char&amp;gt; &amp;gt; &amp;gt;()::__PRETTY_FUNCTION__:
+        .string &amp;quot;constexpr std::string_view type_name() [with T = std::__cxx11::basic_string&amp;lt;char&amp;gt;; std::string_view = std::basic_string_view&amp;lt;char&amp;gt;]&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Which means that the compiler was unable to detect that the rest of the string
+name was unused.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Lets fix this.&lt;/strong&gt;&lt;/p&gt;
+&lt;h3 id=&#34;iteration-optimize-out-unused-string-segments&#34;&gt;Iteration: Optimize out unused string segments&lt;/h3&gt;
+&lt;p&gt;In the first approach, the string is taken in its entirety &amp;ndash; which is likely
+why its also seen in the assembly verbatim. The compiler sees its used, but
+is unable to see that only &lt;em&gt;part&lt;/em&gt; of it is used. So how can we make it see that?&lt;/p&gt;
+&lt;p&gt;The easiest way is to instead &lt;strong&gt;build&lt;/strong&gt; a string, at compile-time, that &lt;em&gt;only&lt;/em&gt;
+contains the name of the type &amp;ndash; and not the rest of &lt;code&gt;__PRETTY_FUNC__&lt;/code&gt;. This way
+the compiler will not see any runtime uses of the function name, it will only
+see runtime uses of the manually built string.&lt;/p&gt;
+&lt;p&gt;Unfortunately there is no way to build a &lt;code&gt;constexpr&lt;/code&gt; string specifically in
+C++17, and &lt;code&gt;basic_fixed_string&lt;/code&gt; never made it into C++20; so
+we will have to do this the old fashioned way: with a &lt;code&gt;char&lt;/code&gt; array!&lt;/p&gt;
+&lt;p&gt;To build the array, we will need to extract each character independently at
+compile-time at each specific index. This is a job for &lt;code&gt;std::index_sequence&lt;/code&gt;,
+and we can leverage C++17&amp;rsquo;s CTAD of &lt;code&gt;std::array&lt;/code&gt; along with &lt;code&gt;auto&lt;/code&gt;-deduced
+return types to make this even easier:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;c1&#34;&gt;// Creates a std::array&amp;lt;char&amp;gt; by building it from the string view
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Idxs&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;substring_as_array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;str&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;index_sequence&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Idxs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;str&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Idxs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]...,&lt;/span&gt; &lt;span class=&#34;sc&#34;&gt;&amp;#39;\n&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And then we just need to update our &lt;code&gt;type_name()&lt;/code&gt; function to make use of this&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;typename&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;type_name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+
+  &lt;span class=&#34;k&#34;&gt;static_assert&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;name&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;function&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;substr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;));&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;name_array&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;substring_as_array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;make_index_sequence&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{});&lt;/span&gt;
+
+  &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;name_array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(),&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;name_array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()};&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Lets test to see if it works! &lt;code&gt;type_name&amp;lt;std::string&amp;gt;()&lt;/code&gt; now gives us:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;�@�o�4P@
+&lt;/code&gt;&lt;/pre&gt;&lt;figure class=&#34;image-container&#34;&gt;&lt;span class=&#34;link&#34; &gt;&lt;a href=&#34;https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAM1QDsCBlZAQwBtMQBGAFlICsupVs1qhkAUgBMAISnTSAZ0ztkBPHUqZa6AMKpWAVwC2tEJMmkt6ADJ5amAHLGARpmJmAbKQAOqBYXVaPUMTMwtffzU6W3snI1d3SS8lFSjaBgJmYgJg41NzRWVMVUCMrIIYxxc3T0VM7NzQgoV6irsq%2BJqkgEpFVANiZA4AcikAZjtkQywAanExnXUW4kxmI3nscQAGAEFxyenMOYXlu2AN7b3JCdopg1n5nVPRAH0ANzxMAHcL3f3bw7HHRZYjMACeGxmUIA9NCZi10CAQCDwZd/ncHgsDGpWIQIWNsDNYfCCIiQHYsAAPF5KACOBi0QzRu2JOhWzAImAUM2YJLJKPxOmQCCykOcYJmzgMeFY%2BFEM0IMyoxFQRhmBAQR2ewBmH2%2Bl05Rm8wk5QIRSP8AC9MC8CAA6B0ASXQlIUvx2aFoLUwlO8xB52NQ8IMzm1L2YCnDxFBYIg5pAYb1XxJZD5SIpPppmHpjMwj2droddo23TRAHZZLsoSsCANaGnkdHURXluIAKzSAtutsAESLpBmYFGbZ0tCH4jLPfmlb2k%2BZO0Nxo5R0eBDB3i0ayOABV3Z7vb7/cxA%2Br1zbaFuIN0ZgBaSHxxOfH5/CuXKH7zmHgNEGZ%2BzBUPBKShY4ewbR99Vfcx22kL5CAQGZtxAuYoLnMYZ3fOgDz9b8gwUAwqAAoCoXmUCHwIYgzneJ8J1kKC0KkSQJyneiqxmD8fWw48fyoAxbjSJCyIo14kxol4XgABQAJWwbdtwATReAAxABVBwdG3R0AHkHDEpjp3nDCvU/TiTxacokJ4vjAjtADtAgP9COvORfxWQi7StTAr301j2K/LigysCzeJKOg7WIWz0DjfDHO8vZWLMtRkHDBQlGyONWiBGYrFLFi4p2QysKPE8LyMFcxlAyyQtodyQ2WdLygHCBApvElym6HL0LYzDjKKn8SptAUBNq8jKIjKMYwgfqB3jIxmAAaxtDNqTpBlbjzBZ%2BvcvBrS8gkaKYjqDJmGs6zAkbhOoit%2BvG8E7XQDlmCvAdroFLadtLVCZz0v5dn8mZZrsK9b0hOwCDmV9WKheM0GxIFHlPDcXn6x5BLODYgceeH4ysVhYu%2BnZhl6VgQGGNthlIUxhi2cnUBJnQ5GchR%2BkGFdrk4cmCBJ6n2tIOaQDbTg7QATg8a5rjGIWtgADiF7gpckXhieGbhycp6nSFp4ZyYUEAtlITmqcJ0g4FgJA0CNGU3HIShze8S33GAKXOFIADWE5YgdYgZwufJ5w7CyMESfZ0hzdK%2BhNNoVhA8N0gsFm0R2B92O8BWEo3i5JOfWKbERmD0HlCT3FnFBYgwT0LAk5Gowg6Nmh6CYNgOB4fhBGEUQUAZmQhDwUN4F6VBvDSHXhhvBESIkGQ5E4Mtb00sZtaKKrNG0RpTGdqxKjiBJBAiAI6FXne/D32hN%2BqdxnZSYo0jKBp9DyQRL6qm%2B2liM%2BH9aA%2BL9aU/OnP3omYGEMLgRMSZkwpknTWlIpYeBvB4bgMxgDIGQDMKWdpOAzAgLgQgJBkJjGdjMPQFt2D%2BnGJwa89NJ4yA5j7XoEAkBZ2QIGMgFAIBZGAAocSIhlAMAQKgL4lNg62xlByQInD7CsB4XwtW5MhHEJAOwi83gFC8IICHVUdtiGaWxJI/hmdKTFB2MQdhJNyYMIyHKExLs6CMBYInZuAhnZtzEJ3eQRcdaQH7oPQIw9R6knHi46es9559EAU3OocoxHcN4bo4Ywcvigm8DXEBpNVYQJJlAmBcCEFIIweRXic1rzYH0Ywog/pMH4FKbgshBCXHUMNjzTUzAsDuCenzOWdothjDLB4bpHgthC04FsAWUshAkxVqQaugy9bSI1pYnWzsDbc2SZIcmkytjTLSVrfWNDejpw9oEEA3AgA&#34;
+        target=&#34;_blank&#34;&gt;&lt;img class=&#34;img&#34; src=&#34;https://img.shields.io/badge/try-online-blue.svg&#34;
+         alt=&#34;Try Online&#34;/&gt;&lt;/a&gt;&lt;/span&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Un-oh, something definitely went wrong!&lt;/p&gt;
+&lt;p&gt;If we look closely at the previous code, we are actually returning a reference
+to a local &lt;code&gt;constexpr&lt;/code&gt; variable &amp;ndash; creating a dangling reference:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;name_array&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;substring_as_array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;make_index_sequence&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{});&lt;/span&gt;
+  &lt;span class=&#34;c1&#34;&gt;//        ^~~~~~~~~~~~~~~ &amp;lt;-- This is local to the function
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;name_array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(),&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;name_array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()};&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;What we would &lt;em&gt;like&lt;/em&gt; is for &lt;code&gt;name_array&lt;/code&gt; to be &lt;code&gt;static&lt;/code&gt;; though unfortunately
+&lt;code&gt;constexpr&lt;/code&gt; requirements in C++ prevents objects with &lt;code&gt;static&lt;/code&gt; storage duration
+from being defined within &lt;code&gt;constexpr&lt;/code&gt; functions.&lt;/p&gt;
+&lt;h3 id=&#34;fixing-our-dangling-pointer&#34;&gt;Fixing our dangling pointer&lt;/h3&gt;
+&lt;p&gt;Though we can&amp;rsquo;t define a &lt;code&gt;static&lt;/code&gt; storage duration object inside of a
+&lt;code&gt;constexpr&lt;/code&gt; function, we &lt;em&gt;can&lt;/em&gt; define a &lt;code&gt;constexpr&lt;/code&gt; &lt;code&gt;static&lt;/code&gt; storage duration
+object &lt;em&gt;from&lt;/em&gt; a &lt;code&gt;constexpr&lt;/code&gt; function &amp;ndash; as long as its a static class member.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;typename&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;struct&lt;/span&gt; &lt;span class=&#34;nc&#34;&gt;type_name_holder&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kr&#34;&gt;inline&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;value&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;...;&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If we rework our code from before a little bit, we can rearrange it so that
+the parsing from the &lt;code&gt;type_name&lt;/code&gt; function now returns the &lt;code&gt;array&lt;/code&gt; of characters
+at &lt;code&gt;constexpr&lt;/code&gt; time to initialize the &lt;code&gt;type_name_holder&amp;lt;T&amp;gt;::value&lt;/code&gt; object.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;c1&#34;&gt;// Note: This has been renamed to &amp;#39;type_name_array&amp;#39;, and now has the return
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// type deduced to simplify getting the array&amp;#39;s size.
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;typename&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;type_name_array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+  &lt;span class=&#34;c1&#34;&gt;// Note: removing the return type changes the format to now require &amp;#39;]&amp;#39; not &amp;#39;;&amp;#39;
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;suffix&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;]&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+
+  &lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+
+  &lt;span class=&#34;k&#34;&gt;static_assert&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;name&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;function&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;substr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;));&lt;/span&gt;
+  &lt;span class=&#34;c1&#34;&gt;// return the array now
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;substring_as_array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;make_index_sequence&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{});&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;typename&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;struct&lt;/span&gt; &lt;span class=&#34;nc&#34;&gt;type_name_holder&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;c1&#34;&gt;// Now the character array has static lifetime!
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kr&#34;&gt;inline&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;value&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;type_name_array&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+
+&lt;span class=&#34;c1&#34;&gt;// The new &amp;#39;type_name&amp;#39; function
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;typename&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;type_name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;value&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;type_name_holder&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;value&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;value&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(),&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;value&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()};&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Trying this again now, we get the proper/expected output:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;std::__cxx11::basic_string&amp;lt;char&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;And checking the assembly, we now see a sequence of binary values representing
+only the type name &amp;ndash; and not the whole &lt;code&gt;__PRETTY_FUNCTION__&lt;/code&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&#34;language-assembly&#34; data-lang=&#34;assembly&#34;&gt;type_name_holder&amp;lt;std::__cxx11::basic_string&amp;lt;char, std::char_traits&amp;lt;char&amp;gt;, std::allocator&amp;lt;char&amp;gt; &amp;gt; &amp;gt;::value:
+        .byte   115
+        .byte   116
+        .byte   100
+        .byte   58
+        .byte   58
+        .byte   95
+        .byte   95
+        .byte   99
+        .byte   120
+        .byte   120
+        .byte   49
+        .byte   49
+        .byte   58
+        .byte   58
+        .byte   98
+        .byte   97
+        .byte   115
+        .byte   105
+        .byte   99
+        .byte   95
+        .byte   115
+        .byte   116
+        .byte   114
+        .byte   105
+        .byte   110
+        .byte   103
+        .byte   60
+        .byte   99
+        .byte   104
+        .byte   97
+        .byte   114
+        .byte   62
+        .byte   10
+&lt;/code&gt;&lt;/pre&gt;&lt;figure class=&#34;image-container&#34;&gt;&lt;span class=&#34;link&#34; &gt;&lt;a href=&#34;https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAM1QDsCBlZAQwBtMQBGAFlICsupVs1qhkAUgBMAISnTSAZ0ztkBPHUqZa6AMKpWAVwC2tENwAcpLegAyeWpgByxgEaZiXSwAdUCwuto9QxMzb19/OjsHZyM3D05LJRU1OgYCZmICIONTC0VlTFUAtIyCKKdXd09FdMzskLyFWrL7CtiqhIBKRVQDYmQOAHIpAGZ7ZEMsAGpxEZ11JuJMZiNZ7HEABgBBUfHJzBm5xftgNc2dyTHaCYNp2Z1j0QB9ADc8TAB3M%2B3d6/3DnQZYjMACeaymEIA9JCpk10CAQEDQedfjc7nMDGpWIQwSNsFNobCCPCQPYsAAPJ5KACOBi0AxR20JOiWzAImAUU2YRJJSNxOmQCAy4JcIKmLgMeFY%2BFEU0IUyoxFQRimBAQB0ewCmb0%2B53ZRi8wnZALhCL8AC9ME8CAA6O0ASXQ5IU3y2aFoTUw5K8xC5mNQsIMLk1T2YClDxGBIIgppAIZ1HyJZB5CLJXqpmFp9Mw90dzrtNrWnRRAHZZNsIUsCH1aCnEZHkWXFuIAKzSPMulsAEQLpCmYGGLZ0tAH4hLXdm5Z248ZW31hrZB3uBBBXi0KwOABVXe7Pd7fcx/arV1baBuI1GIMWfmXzhDd%2Bz936iFMfZgqHhyRDDl26/H3l8t6SJIrbSB8hAIFMm4/jMwFjhOIxTvedB7j6z4BgoBhUB%2BX4QrMv6xv%2BupASB3ZSCBM6IXeUwPl6aGHi%2BVAGNcKS1vhf4EMQJyvABY7SE8TwAAoAErYJum4AJpPAAYgAqo4OibvaADyjgCfBk6zshHqPvRR5NKUMFMSxAQ2h%2B2gQG%2BOGdLB0ivksOE2hamBXppFY0ShukHke1hGcxRR0DaxDmegMZYdZbk7O5BlqMgoYKEomQxs0AJTNYxZUT87m0U%2BDEBmeRhLiMv7GQFtBOUGizJaUfYQL5AC0RKlJ0GVIVMVY1oGwacdxYYXqCEAFZgfaxkYzAANZWmmlI0nS1w5nMQ1OXglquXifHwa1pYTllc6YAaRpFToK5rkNUGuosBiqMea5PENTwIPoWC%2Bht0XpLFcq0NiDgeTpdHeS%2BLxsHSMEnae558vc254mtU4aZlUV7Qdi4AmDZ3Q%2Bs2w5XpL5g3dG5XlM9XgoRPXPAmpZtdjAOoFIABs2rA0Vv54/dj3Su4UNrAiQOGAtbUdcQtak1x5O8WWvN0ja6BsswV59pLmDLatxaUXDM67eceVTGN9iE8TeKfQQMy3u5EKxmgmIAvcN3g4V9wiycayE/cNuxtYrCRRp2yDN0rAgIMLaDKQpiDBsweoAHOhyHIsK9P0S6XJwwcEAH4ctaQ40gC2nA2gAnHTlyXCMecbOYecWJIvD%2B4M3DB6H4ekJHgzBwoIAbKQqdh77pBwLASBoAaUruOQlCD14w8eMA5icKQH6sOyxBtxALhp8HLj2BkIIB8npCD4V9DKV92/d6QWBjaI7Br2feBLEULwctfXqFJiQy7/Y7I1432IuMCxAgnoLA18epGB3j3Gg9AmBsA4DwfgghhCiBQDHGQQg8DBngN0VAXhWJt0GPVOE%2BEJAyDkJwEsRNlIjFbgUMqmhtD1FMLPaw5QYhxEED4PwrF6FsPCKxZhlR4j5GSMUZoXDZ5JEKKxEomQ%2BHtAEQZOo%2BgciCHkS0aI/CuDdAUPHAYGihAByDiHa%2BzdyTmDpvVOm3ApjAGQMgKY5gbScCmBAXAhASCwRGLPKYegh7sBeknGy0diEyBTmvboEAkDP2QP6MgFAIAZGAAoQSIhlAMEeh8UOu9x5SjZAEJJDhWCpNQOk6%2BWTfEgASWeLwChHoED3sqCevjlKYkKcU0%2BkStjEASQHYOkS0gym6XPOgjAWBX1gQIWeCCxDIPkD/NukBMHYICLg/BxJCHTNIeQyhPQ%2Bg6LEcSeweSUlpIycHD4wIvBgL9vo%2BuRiA4mLMRYqxNinGcWYuNGy2ByQvyIL6Zx%2BAfnuM4AE6ZITu4Z3VMwZ6lBuhZwsDaDYIwSx0yRXTDYedOAbBzpYGuddSCgIxR3BuEcBlt1nl3dOVzBiSGDvijYhLbkt07qE7oD8l4BDMEAA%3D%3D&#34;
+        target=&#34;_blank&#34;&gt;&lt;img class=&#34;img&#34; src=&#34;https://img.shields.io/badge/try-online-blue.svg&#34;
+         alt=&#34;Try Online&#34;/&gt;&lt;/a&gt;&lt;/span&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;So yay, we got it working for GCC!&lt;/p&gt;
+&lt;h3 id=&#34;supporting-other-compilers&#34;&gt;Supporting other compilers&lt;/h3&gt;
+&lt;p&gt;Clang and MSVC can be handled similarly, and only require the &lt;code&gt;prefix&lt;/code&gt;,
+&lt;code&gt;suffix&lt;/code&gt;, and &lt;code&gt;function&lt;/code&gt; variables to be changed at compile-time
+(e.g. through &lt;code&gt;#ifdef&lt;/code&gt;s).&lt;/p&gt;
+&lt;p&gt;In the end, I came up with the following snippet to toggle the behavior:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;typename&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;type_name_array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;cp&#34;&gt;#if defined(__clang__)
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;prefix&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;[T = &amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;suffix&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;]&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;function&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;__PRETTY_FUNCTION__&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+&lt;span class=&#34;cp&#34;&gt;#elif defined(__GNUC__)
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;prefix&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;with T = &amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;suffix&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;]&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;function&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;__PRETTY_FUNCTION__&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+&lt;span class=&#34;cp&#34;&gt;#elif defined(_MSC_VER)
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;prefix&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;type_name_array&amp;lt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;suffix&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;&amp;gt;(void)&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;function&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;__FUNCSIG__&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+&lt;span class=&#34;cp&#34;&gt;#else
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;# error Unsupported compiler
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;#endif
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;These three variables are the only ones that would need to be changed to port to
+a different compiler that also offers some form of &lt;code&gt;__PRETTY_FUNCTION__&lt;/code&gt;-like
+equivalent.&lt;/p&gt;
+&lt;h2 id=&#34;a-working-solution&#34;&gt;A Working Solution&lt;/h2&gt;
+&lt;p&gt;Putting it all together, our simple utility should look like:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cpp&#34; data-lang=&#34;cpp&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#include&lt;/span&gt; &lt;span class=&#34;cpf&#34;&gt;&amp;lt;string&amp;gt;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;#include&lt;/span&gt; &lt;span class=&#34;cpf&#34;&gt;&amp;lt;string_view&amp;gt;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;#include&lt;/span&gt; &lt;span class=&#34;cpf&#34;&gt;&amp;lt;array&amp;gt;   // std::array&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;#include&lt;/span&gt; &lt;span class=&#34;cpf&#34;&gt;&amp;lt;utility&amp;gt; // std::index_sequence&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Idxs&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;substring_as_array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;str&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;index_sequence&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Idxs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;str&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Idxs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]...,&lt;/span&gt; &lt;span class=&#34;sc&#34;&gt;&amp;#39;\n&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;typename&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;type_name_array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;cp&#34;&gt;#if defined(__clang__)
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;prefix&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;[T = &amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;suffix&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;]&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;function&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;__PRETTY_FUNCTION__&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+&lt;span class=&#34;cp&#34;&gt;#elif defined(__GNUC__)
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;prefix&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;with T = &amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;suffix&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;]&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;function&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;__PRETTY_FUNCTION__&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+&lt;span class=&#34;cp&#34;&gt;#elif defined(_MSC_VER)
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;prefix&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;type_name_array&amp;lt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;suffix&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;&amp;gt;(void)&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;function&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;__FUNCSIG__&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+&lt;span class=&#34;cp&#34;&gt;#else
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;# error Unsupported compiler
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;#endif
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;function&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;find&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;prefix&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;prefix&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;function&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;rfind&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;suffix&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+
+  &lt;span class=&#34;k&#34;&gt;static_assert&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;name&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;function&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;substr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;));&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;substring_as_array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;make_index_sequence&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{});&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;typename&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;struct&lt;/span&gt; &lt;span class=&#34;nc&#34;&gt;type_name_holder&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kr&#34;&gt;inline&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;value&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;type_name_array&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;template&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;typename&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;type_name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;constexpr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;value&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;type_name_holder&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;T&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;value&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string_view&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;value&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(),&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;value&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()};&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;figure class=&#34;image-container&#34;&gt;&lt;span class=&#34;link&#34; &gt;&lt;a href=&#34;https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAM1QDsCBlZAQwBtMQBGAFlICsupVs1qhkAUgBMAISnTSAZ0ztkBPHUqZa6AMKpWAVwC2tQVvQAZPLUwA5YwCNMxEAGZJpAA6oFhdbT1DE0FvXzU6Kxt7IycXd0VlTFV/BgJmYgJA41NOBJVw2lT0gki7R2c3DwU0jKzg3Ori0ujYyoBKRVQDYmQOAHIpV2tkQywAanFXHXVq4kxmI0nscQAGAEFB4dHMCanZ62Al1Y3JIdoRg3HJnX3RAH0ANzxMAHcj9c3z7d2ddOJmACeSzGIIA9KCxtV0CAQH9AcdPhcrlMDGpWIQga5sGNwZCCNCQNYsAAPO5KACOBi0vQR61xOjmzAImAUY2YeIJcMxOmQCHSwIcALGDgMeFY%2BFEY0IYyoxFQRjGBAQO1uwDGT1ex2ZRk8wmZPyhMN8AC9MHcCAA6K0ASXQxIU7zWaFo1UwxM8xDZqNQkIMDlVd2YCkDxH%2BAIghpAAY1LzxZA5MKJbrJmEp1Mw11t9qtFqWbQRAHZZOsQXMCN1aAnYaH4UXZuIAKzSLMOhsAERzpDGYAGDZ0tB74gLbcmxY2w9pa21uqZO2uBABni0Cx2ABVHc7Xe7PcxvYrF2baCuQ2GIPmPkWEac8FQxlgqNZMOgIHc7iMRMBX%2Be1iDN8zt16RBjB6mAPsSIK7G2VbRs8byXpIkiNtIq6QRMCFDiOrhjr%2BdBbh6gE%2BgoBhUGBEGTFBkYwZq8GIe2UiIROWHHDhLr/vhu5AVQBjnAUqGUQQxAHI8sFDtIr4AAoAErYKuq4AJp3AAYgAqrYOirtaADytivhho5Xq4yg3neoGPs%2Br4AOK2MpOhfsxYx/m67F7iBpEguR0ECUJMaifRLyEAgYwoR59F6UxJYObhbE7nuREkXg4Hua4FH4kaXn3D5NGNiO6GMdhkWsU5MWcdxyR0HxqVRuln6ZWJdxSTJ8lKap6laTpdxhWOgxGbe95mS%2BACyDC2QAatgknfixeHFT6rkJWRyWeYJGUiTRC5LncR5GGaXLXKFeX2Y5AEcYRxFuRVBJUXBsjoViEAPKgeDoPmuWYflR3OSVPH%2BBdaXLTVq11SpakMNaFm6QdHynMoSgGWMzhyp6ykugYnjeBkT6RTqYrOAZ5g3pOU3RQReLFKhXHfXQFoPtoEBzcSbRodIwFzGBFompgZ76RFH0zfD2jk6VBQWsQNPPnFYH5uFGwRY0ajIIGChKBkEY1AQPz8893Myz%2BBXTSTW1zotFNlbQ7N%2BrMqvFF2EDmGMAC0pMZG0Uv5WWFa%2Bv61WKyegIQIbXaRkYzAANZmkmpIUlS5wZlMhvs3gppc1ivnDq7hYjh86zTnqRs6Oty7bUFjqzAYqj7htht3Ag%2BhYJ6vmy2k8tSrQ6I2HrxMneqbBUqhBebceu1TOud3pxeb2Tjns4/AXhvFyn6y8yT/eG2eDvAvx/3CZqF7vVFRUEVIABs3eGEbUEr8eNfirjw9LDCDw97HbuYOWxCVpv3mA4/Z8WugTLMDPF2H%2BVIE5J3zJDccmcdbHC7sHawa97bAmsOrBuusQSRjQKiH41wK6HhXNcT%2Boglhrz2lMKs5hWDaz0usPoHRWAgD6A2PopBTB9BWCw1AjCdByDkJCLoPQ5ynE4CwggjCOEu1ICHNw3ALSuB4NwAAnA2FYkgAAcBY1ErALA2BsQhGHcBYWwjhpAuF9BYQoEAKxSBiPYXQ0gcBYBIDdEkb0ZAKAQHSMABQ4kRDKAYDXF4bCRGkDQNjPU/hfE2FYAE1AQTxEsLCZ4HGLhvFHk8AoGuBBQnymSewYgmlUSxPiXY0gLjkBrGIN4xhLDympAlDU0gNB6BMDYBwHg/BBDCFECgXhMghB4H9PADoqBPAFEsX0e2UJyISBkHITgBYHaaVcBYgRvRBBQmsFE/xgTgksJeP8TwjCRH0MYcw1hCTTGMOJGoo%2B9sj7cDGMAZAyAxgQAEtxEOjNsDElcUQT0EBcCEBIGheRjMeFzJkKIhJkjlTMDrpQDo0j3ByIbJIBZnAj6uE0WohsijXD6L6IY0gRguArGscYzhjTLG5FsRIhxMBEAgHKW48glAvE%2BL8TE3ZxzEm5LFEySJXLimUpyeEio757gfNoCHMVeTnCFMYDy0p5TKnVPMWU35yB6nWEac0xgLB2BcF4AIDw3SxB9PkOiIZkARljP8BMqZ%2BIZmWoWUslZnRujrIaPiLZwrlUhIOcwI5fQTmEvOaKsxNy7kPIcuat50qvljB%2BX8kFgL8D/NBZwcFlroV2Mkci1wcjXAltLWW0thLiWRupVYmxMLTl9EkCw0lnByUXNKWYvNEiOgPGcL4DQ3AgA%3D&#34;
+        target=&#34;_blank&#34;&gt;&lt;img class=&#34;img&#34; src=&#34;https://img.shields.io/badge/try-online-blue.svg&#34;
+         alt=&#34;Try Online&#34;/&gt;&lt;/a&gt;&lt;/span&gt;
+&lt;/figure&gt;
+
+&lt;h2 id=&#34;closing-thoughts&#34;&gt;Closing Thoughts&lt;/h2&gt;
+&lt;p&gt;Although there may not be any built-in facility to get the full type-name of an
+object at compile-time; we can easily abuse other features of C++ to make this
+possible in a reasonably portable way.&lt;/p&gt;
+&lt;p&gt;This is all possible thanks to the many reduced restrictions on &lt;code&gt;constexpr&lt;/code&gt;
+functions, and thanks to a rich feature-set of &lt;code&gt;constexpr&lt;/code&gt; functionality
+in the standard library (particularly &lt;code&gt;string_view&lt;/code&gt;).&lt;/p&gt;</description>
+    </item>
+    
+    <item>
       <title>Builder Pattern: Expressing ownership transfer</title>
       <link>https://bitwizeshift.github.io/posts/2020-03-02/builder-pattern-expressing-ownership-transfer/</link>
       <pubDate>Tue, 02 Mar 2021 17:06:40 -0500</pubDate>

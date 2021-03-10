@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.81.0" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark"><title>Getting an Unmangled Type Name at Compile Time&nbsp;&ndash;&nbsp;@bitwizeshift on software</title><link rel="stylesheet" href="/css/core.min.926318ac86aa87bfee699f8249c632dd56e5fa9c691ec2b7cdc55b3b9fe55b167b6edff9dac71a353d0f3b9e6d4888de.css" integrity="sha384-kmMYrIaqh7/uaZ&#43;CScYy3Vbl&#43;pxpHsK3zcVbO5/lWxZ7bt/52scaNT0PO55tSIje"><meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Getting an Unmangled Type Name at Compile Time" /><body><header id="header">
+  <div class="header wrap">
+    <div class="header left-side"><a class="site home" href="/"><span class="site name">@bitwizeshift on software</span></a>
+    </div>
+    <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/about">About Me</a><a class="nav item" href="/tags">Tags</a><a class="nav item" href="/glossary">Glossary</a><a class="nav item" href="/license">License</a></nav></div></span></div></header>
+<section id="content"><main class="article-container">
+  <article class="article"><header class="article header">
+  <h1 class="article title">Getting an Unmangled Type Name at Compile Time</h1><h2 class="article subtitle">A really useful and obscure technique</h2><p class="article date">
+      Posted on <time class="published"  title="2021-03-09 19:21:59 -0500 -0500" datetime="2021-03-09 19:21:59 -0500 -0500">March 9, 2021</time></p><aside class="article subscription">
+    <a class="github-button" href="https://github.com/bitwizeshift/bitwizeshift.github.io" data-color-scheme="no-preference: light; light: light; dark: dark;" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Starbitwizeshift/bitwizeshift.github.ioon GitHub">Star</a><a class="github-button" href="https://github.com/bitwizeshift" data-color-scheme="no-preference: light; light: light; dark: dark;" data-size="large" data-show-count="true" aria-label="Follow @bitwizeshifton GitHub">Follow @bitwizeshift</a></aside></header>
+<section class="article markdown-body"><p>Getting the name of a type in C++ is a hassle. For something that should be
+trivially known by the compiler at compile-time, the closest thing we have to
+getting the type in a <strong>cross-platform</strong> way is to use
+<a href="https://en.cppreference.com/w/cpp/types/type_info/name"target="_blank" rel="noopener noreferrer"><code>std::type_info::name</code></a>
+ which
+is neither at compile-time, nor is it guaranteed to be human-readable.</p>
+<p>In fact, both GCC and Clang actually return the compiler&rsquo;s <strong>mangled</strong> name
+rather than the human-readable name we are used to. Let&rsquo;s try to make something
+better using the modern utilities from <a class="tag link" href="/tags/c&#43;&#43;17/">c&#43;&#43;17</a>
+ and a little creative problem
+solving!</p>
+<aside class="table-of-contents">
+  <header class="table-of-contents navigation-header">
+    <h2>Table of Contents</h2>
+  </header>
+  <nav id="TableOfContents">
+  <ul>
+    <li><a href="#reflecting-on-the-type-name">Reflecting on the Type Name</a></li>
+    <li><a href="#finding-a-string-at-compile-time">Finding a String at Compile Time</a>
+      <ul>
+        <li><a href="#macros">Macros</a></li>
+        <li><a href="#function-name">Function Name</a></li>
+      </ul>
+    </li>
+    <li><a href="#exploiting-the-names-of-functions">Exploiting the Names of Functions</a>
+      <ul>
+        <li><a href="#format">Format</a></li>
+        <li><a href="#parsing-a-first-attempt">Parsing: A first attempt</a></li>
+        <li><a href="#iteration-optimize-out-unused-string-segments">Iteration: Optimize out unused string segments</a></li>
+        <li><a href="#fixing-our-dangling-pointer">Fixing our dangling pointer</a></li>
+        <li><a href="#supporting-other-compilers">Supporting other compilers</a></li>
+      </ul>
+    </li>
+    <li><a href="#a-working-solution">A Working Solution</a></li>
+    <li><a href="#closing-thoughts">Closing Thoughts</a></li>
+  </ul>
+</nav>
+</aside>
+
+<h2 id="reflecting-on-the-type-name">Reflecting on the Type Name</h2>
+<p>The C++ programming language lacks any real form of reflection, even all the
+way up to c++20. Some <em>reflection-like</em> functionalities can be done by
+leveraging strange or obscure techniques through templates; but overall these
+effects tend to be quite limited.</p>
+<p>So how can we get the type name without reflection?</p>
+<p>Realistically, we shouldn&rsquo;t actually <em>need</em> reflection for this purpose; all
+we need is something the compiler can give us that <em>contains</em> the type name
+in a string. As long as the string is known at compile time, we can then use
+modern C++ utilities to <em>parse</em> the string to deliver it to us also at
+compile-time.</p>
+<h2 id="finding-a-string-at-compile-time">Finding a String at Compile Time</h2>
+<p>We know that <code>typeid</code>/<code>std::type_info::name</code> is out &ndash; since this doesn&rsquo;t
+operate at compile-time or yield us a reasonable string.
+There aren&rsquo;t any specific language constructs explicitly giving us the type
+name outside of <code>typeid</code>, so we will have to consider other sources of
+information.</p>
+<p>Checking the C++ standard, the only other sources of strings that may exist
+at compile-time come from the preprocessor and other builtins; so lets start
+there.</p>
+<h3 id="macros">Macros</h3>
+<p>One somewhat obvious approach to getting a type name as a string is to leverage
+the macro preprocessor to stringize the input. For example:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="cp">#define TYPE_NAME(x) #x
+</span></code></pre></div><p>This will work for cases where the type is always statically expressed, such as:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="n">TYPE_NAME</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+</code></pre></div><p>which will print</p>
+<pre><code>std::string
+</code></pre><p>But it falls short on indirect contexts where you only have the <code>T</code> type, or
+you are deducing the type from an expression! For example:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="kt">void</span> <span class="n">print</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="n">TYPE_NAME</span><span class="p">(</span><span class="n">T</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="n">TYPE_NAME</span><span class="p">(</span><span class="k">decltype</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div><p>will print</p>
+<pre><code>T
+decltype(x)
+</code></pre><p>Which is not correct. So the preprocessor is unfortunately not an option here.
+What else could we use?</p>
+<p>Perhaps we could extract something that <em>contains</em> the type name in the string
+&ndash; like getting the name of a function?</p>
+<h3 id="function-name">Function Name</h3>
+<p>If we had a function that contains the type we want to stringize; perhaps
+something like:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="kt">void</span> <span class="n">some_function</span><span class="p">();</span>
+</code></pre></div><p>Where a call of <code>some_function&lt;foo&gt;()</code> would produce a function name of
+<code>&quot;some_function&lt;foo&gt;()&quot;</code>, then we could simply <em>parse</em> it to get the type name
+out. Does C++ have such a utility?</p>
+<p>Standard C++ offers us a hidden variable called
+<a href="https://en.cppreference.com/w/c/language/function_definition#func"target="_blank" rel="noopener noreferrer"><code>__func__</code></a>
+, which
+behaves as a constant <code>char</code> array defined in each function scope. This
+satisfies the  requirement that it be at compile-time; however its notably
+very limited. <code>__func__</code> is only defined to be the <em>name</em> of the function, but
+it does not carry any other details about the function &ndash; such as overload
+information or template information, since <code>__func__</code> was actually inherited
+from C99 which has neither.</p>
+<p>However, this doesn&rsquo;t mean its the end. If you check in your trusty compiler
+manual(s), you will find that all major compilers offer a <code>__func__</code> equivalent
+for C++ that also contains overload and template information!</p>
+<h2 id="exploiting-the-names-of-functions">Exploiting the Names of Functions</h2>
+<p>GCC and Clang both offer a <code>__func__</code>-like variable for C++ which contains
+more detailed information as an extension called
+<a href="https://gcc.gnu.org/onlinedocs/gcc/Function-Names.html"target="_blank" rel="noopener noreferrer"><code>__PRETTY_FUNCTION__</code></a>
+.
+MSVC also offers a similar/equivalent one called
+<a href="https://docs.microsoft.com/en-us/cpp/preprocessor/predefined-macros?view=msvc-160"target="_blank" rel="noopener noreferrer"><code>__FUNCSIG__</code></a>
+.</p>
+<p>These act as <strong>compiler extensions</strong> and as such are not &ndash; strictly speaking &ndash;
+portable; however this does not mean that we can&rsquo;t wrap this into a useful
+way. Lets try to make a proof-of-concept using GCC&rsquo;s <code>__PRETTY_FUNCTION__</code>.</p>
+<h3 id="format">Format</h3>
+<p>The first thing we need to know is what GCC&rsquo;s format is when printing a
+<code>__PRETTY_FUNCTION__</code>. Lets write a simple test:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">auto</span> <span class="n">test</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span>
+<span class="p">{</span>
+  <span class="k">return</span> <span class="n">__PRETTY_FUNCTION__</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="p">...</span>
+
+<span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="n">test</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="p">();</span>
+</code></pre></div><p>Yields</p>
+<pre><code>std::string_view test() [with T = std::__cxx11::basic_string&lt;char&gt;; std::string_view = std::basic_string_view&lt;char&gt;]
+</code></pre><p>Which means that, at least for GCC, we need to find where <code>with T = </code> begins
+and <code>;</code> ends to get the type name in between!</p>
+<figure class="image-container"><span class="link" ><a href="https://godbolt.org/#g:!%28%28g:!%28%28g:!%28%28h:codeEditor,i:%28fontScale:14,j:1,lang:c%2B%2B,selection:%28endColumn:1,endLineNumber:15,positionColumn:1,positionLineNumber:15,selectionStartColumn:1,selectionStartLineNumber:15,startColumn:1,startLineNumber:15%29,source:%27%23include&#43;%3Ciostream%3E%0A%23include&#43;%3Cstring%3E%0A%23include&#43;%3Cstring_view%3E%0A%0Atemplate&#43;%3Ctypename&#43;T%3E%0Aauto&#43;test%28%29&#43;-%3E&#43;std::string_view%0A%7B%0A&#43;&#43;return&#43;__PRETTY_FUNCTION__%3B%0A%7D%0A%0Aauto&#43;main%28%29&#43;-%3E&#43;int&#43;%7B%0A&#43;&#43;&#43;&#43;std::cout&#43;%3C%3C&#43;test%3Cstd::string%3E%28%29%3B%0A%7D%0A%0A%27%29,l:%275%27,n:%270%27,o:%27C%2B%2B&#43;source&#43;%231%27,t:%270%27%29%29,k:51.962323390894824,l:%274%27,n:%270%27,o:%27%27,s:0,t:%270%27%29,%28g:!%28%28h:compiler,i:%28compiler:g81,filters:%28b:%270%27,binary:%271%27,commentOnly:%270%27,demangle:%270%27,directives:%270%27,execute:%271%27,intel:%270%27,libraryCode:%270%27,trim:%271%27%29,fontScale:14,j:1,lang:c%2B%2B,libs:!%28%29,options:%27-std%3Dc%2B%2B17&#43;-O3%27,selection:%28endColumn:1,endLineNumber:1,positionColumn:1,positionLineNumber:1,selectionStartColumn:1,selectionStartLineNumber:1,startColumn:1,startLineNumber:1%29,source:1%29,l:%275%27,n:%270%27,o:%27x86-64&#43;gcc&#43;8.1&#43;%28Editor&#43;%231,&#43;Compiler&#43;%231%29&#43;C%2B%2B%27,t:%270%27%29,%28h:executor,i:%28argsPanelShown:%271%27,compilationPanelShown:%270%27,compiler:gsnapshot,compilerOutShown:%270%27,execArgs:%27%27,execStdin:%27%27,fontScale:14,j:1,lang:c%2B%2B,libs:!%28%29,options:%27-std%3Dc%2B%2B17&#43;-O3%27,source:1,stdinPanelShown:%271%27,wrap:%271%27%29,l:%275%27,n:%270%27,o:%27x86-64&#43;gcc&#43;%28trunk%29&#43;Executor&#43;%28Editor&#43;%231%29&#43;C%2B%2B%27,t:%270%27%29%29,header:%28%29,k:48.03767660910518,l:%274%27,m:100,n:%270%27,o:%27%27,s:1,t:%270%27%29%29,l:%272%27,m:100,n:%270%27,o:%27%27,t:%270%27%29%29,version:4"
+        target="_blank"><img class="img" src="https://img.shields.io/badge/try-online-blue.svg"
+         alt="Try Online"/></a></span>
+</figure>
+
+<h3 id="parsing-a-first-attempt">Parsing: A first attempt</h3>
+<p>So lets try to write a simple parser that works at compile-time.
+For this we can use <code>&lt;string_view&gt;</code> for the heavy-lifting.</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">constexpr</span> <span class="k">auto</span> <span class="n">type_name</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span>
+<span class="p">{</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">prefix</span>   <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="s">&#34;[with T = &#34;</span><span class="p">};</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">suffix</span>   <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="s">&#34;;&#34;</span><span class="p">};</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">function</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="n">__PRETTY_FUNCTION__</span><span class="p">};</span>
+
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">start</span> <span class="o">=</span> <span class="n">function</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span> <span class="o">+</span> <span class="n">prefix</span><span class="p">.</span><span class="n">size</span><span class="p">();</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">end</span> <span class="o">=</span> <span class="n">function</span><span class="p">.</span><span class="n">rfind</span><span class="p">(</span><span class="n">suffix</span><span class="p">);</span>
+
+  <span class="k">static_assert</span><span class="p">(</span><span class="n">start</span> <span class="o">&lt;</span> <span class="n">end</span><span class="p">);</span>
+
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">result</span> <span class="o">=</span> <span class="n">function</span><span class="p">.</span><span class="n">substr</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="p">(</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">));</span>
+
+  <span class="k">return</span> <span class="n">result</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div><p>The algorithm is simple:</p>
+<ol>
+<li>Find where the prefix starts, and get the index at the end of it</li>
+<li>Find where the suffix ends, and get the index at the beginning of it</li>
+<li>Create a substring between those two indices</li>
+</ol>
+<p>Lets test if it works. A simple program of:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="n">type_name</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="p">()</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+</code></pre></div><p>now prints:</p>
+<pre><code>std::__cxx11::basic_string&lt;char&gt;
+</code></pre><figure class="image-container"><span class="link" ><a href="https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAM1QDsCBlZAQwBtMQBGAFlICsupVs1qhkAUgBMAISnTSAZ0ztkBPHUqZa6AMKpWAVwC2tENwAcpLegAyeWpgByxgEaZiIAJykADqgWE6rR6hiZmln4BanR2Ds5Gbh7eSirRtAwEzMQEIcamForKmKpBGVkEsU6u7l6Kmdm5YQUK9RX2VQk1ngCUiqgGxMgcAORSAMz2yIZYANTiYzrqLcSYzEbz2OIADACC45PTmHMLy/bAG9t7khO0Uwaz8zqnogD6AG54mADuF7uXBJgjD5hADjjoCABPHxaNZHAAqvx2aFoLUwAA8fMQZswDEQZpDoS9aLCIN0ZgBaDYzFroEAgZ7Ad6fH5/ADssl2MxmyNRGKxOLxmMwVDwaK5xwAItSCLT6QRiGcmd9xOypJJxABWaRfQgIGZwyVzSTq1kS%2BYcnZcnkAvnY3GoakGKgisVc%2BZSml0hlKn6q43mtUqs1jC1Wui8zF2vFUAy3NKGz1yhWvD7K9kvF4ABQAStg4XCAJovABiAFVHDo4QBJADyjgzQYDf053PDNsjAodLXKhpjcaCADoRdoIEKXWS5DMx6KBwEAF6YUlNy2tlHt/n2mbWXuxkp0AfEYfoCAKJ3j5eXLndtTIF7MBRKbIn1pgrfaboXlvW9EdzcrU%2BsAQO79vup4uMsz7lKQMwQNu5LSuU3QfiGlyXjMKwEAMtDoZgAEEBepqobsnYzEYzD2KSFJUvYQEqqG4qJmguJgo8%2BJQpgRKwo8iYMhslGPKxibWKwBFmrswy9KwIDDBqwykKYwxbHJqDSTociTgo/SDEc4ycHJBDSUpSGkAA1iAGqcAOngAGzXNcYyeFs5ieBYki8FJwzcHJClKaQKnDHJCggFspAGYpEmkHAsBIGgQJ4OwZAUBAsU%2BPFNTAOYnCkCKgHuEFEAuIZckuPYWQQtJemkLFRhaAQNa0Kw5XhaQWBkaI7BFS1eArCUby4Z16LFLiIyVTRyidaweAuMQZV6FgnXyngRgVRFND0EwbAcDw/CCMIogoOpMhCFNQWQL0qA%2BGkQXDOSNLuhIMhyJwrIUjWYyBUUe6mLB2iNKYWXWJU8SJIIkSBHQf2g/44O0ED1QeFlKTFGkZQNPoeSCEjX2o20cTw5jrSQ4jrRw50CO9JpAxDFwknSbJ8mdf5aLmNZ5LWdwMzAMgyAzOYA6cDBuCECQRpjFlMx6HFCWi5wZJqY9Mj6UVvQQEgg3IPaiWUFkwAKJmIjKAwCCoF8CmVSl8XMGk%2BsOKwRsmz5ckWwlIC68SPgKMbBBVagUvuDWuL26bA1osUOzELr0lyerGT4ApclrYwLAddtAhZXtYiHfIk3gfA52XUE123TK91Z89r3vX0VNbXUcc24bxvB8MlVfDNPgrbTMneYz0nM6z7Oc9zMHyrGJlktgoca0QWIQEL08y3LWdK%2BFxkIKsWAeKSpnhAOWxjKy1kH9ZWyeJwWwWZYHleaQy1nyFjt%2BVHijBaFyud5Icm31s989wFr8r70PqxAAgaG4EAA%3D"
+        target="_blank"><img class="img" src="https://img.shields.io/badge/try-online-blue.svg"
+         alt="Try Online"/></a></span>
+</figure>
+
+<p>Great!
+Before we celebrate, we should check to make sure that the compiler isn&rsquo;t
+embedding the entire function name &ndash; otherwise we might bloat the executable
+with unused strings. Otherwise, this would be quite the trade-off, and not
+zero-overhead.</p>
+<p>Checking the generated assembly, we can see that the string <em>does exist</em> in its
+complete form, even at <code>-O3</code>:</p>
+<pre><code class="language-assembly" data-lang="assembly">type_name&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt;()::__PRETTY_FUNCTION__:
+        .string &quot;constexpr std::string_view type_name() [with T = std::__cxx11::basic_string&lt;char&gt;; std::string_view = std::basic_string_view&lt;char&gt;]&quot;
+</code></pre><p>Which means that the compiler was unable to detect that the rest of the string
+name was unused.</p>
+<p><strong>Lets fix this.</strong></p>
+<h3 id="iteration-optimize-out-unused-string-segments">Iteration: Optimize out unused string segments</h3>
+<p>In the first approach, the string is taken in its entirety &ndash; which is likely
+why its also seen in the assembly verbatim. The compiler sees its used, but
+is unable to see that only <em>part</em> of it is used. So how can we make it see that?</p>
+<p>The easiest way is to instead <strong>build</strong> a string, at compile-time, that <em>only</em>
+contains the name of the type &ndash; and not the rest of <code>__PRETTY_FUNC__</code>. This way
+the compiler will not see any runtime uses of the function name, it will only
+see runtime uses of the manually built string.</p>
+<p>Unfortunately there is no way to build a <code>constexpr</code> string specifically in
+C++17, and <code>basic_fixed_string</code> never made it into C++20; so
+we will have to do this the old fashioned way: with a <code>char</code> array!</p>
+<p>To build the array, we will need to extract each character independently at
+compile-time at each specific index. This is a job for <code>std::index_sequence</code>,
+and we can leverage C++17&rsquo;s CTAD of <code>std::array</code> along with <code>auto</code>-deduced
+return types to make this even easier:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="c1">// Creates a std::array&lt;char&gt; by building it from the string view
+</span><span class="c1"></span><span class="k">template</span> <span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">size_t</span><span class="p">...</span><span class="n">Idxs</span><span class="o">&gt;</span>
+<span class="k">constexpr</span> <span class="k">auto</span> <span class="n">substring_as_array</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">string_view</span> <span class="n">str</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">index_sequence</span><span class="o">&lt;</span><span class="n">Idxs</span><span class="p">...</span><span class="o">&gt;</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">array</span><span class="p">{</span><span class="n">str</span><span class="p">[</span><span class="n">Idxs</span><span class="p">]...,</span> <span class="sc">&#39;\n&#39;</span><span class="p">};</span>
+<span class="p">}</span>
+</code></pre></div><p>And then we just need to update our <code>type_name()</code> function to make use of this</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">constexpr</span> <span class="k">auto</span> <span class="n">type_name</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span>
+<span class="p">{</span>
+  <span class="p">...</span>
+
+  <span class="k">static_assert</span><span class="p">(</span><span class="n">start</span> <span class="o">&lt;</span> <span class="n">end</span><span class="p">);</span>
+
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">name</span> <span class="o">=</span> <span class="n">function</span><span class="p">.</span><span class="n">substr</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="p">(</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">));</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">name_array</span> <span class="o">=</span> <span class="n">substring_as_array</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">make_index_sequence</span><span class="o">&lt;</span><span class="n">name</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="o">&gt;</span><span class="p">{});</span>
+
+  <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="n">name_array</span><span class="p">.</span><span class="n">data</span><span class="p">(),</span> <span class="n">name_array</span><span class="p">.</span><span class="n">size</span><span class="p">()};</span>
+<span class="p">}</span>
+</code></pre></div><p>Lets test to see if it works! <code>type_name&lt;std::string&gt;()</code> now gives us:</p>
+<pre><code>�@�o�4P@
+</code></pre><figure class="image-container"><span class="link" ><a href="https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAM1QDsCBlZAQwBtMQBGAFlICsupVs1qhkAUgBMAISnTSAZ0ztkBPHUqZa6AMKpWAVwC2tEJMmkt6ADJ5amAHLGARpmJmAbKQAOqBYXVaPUMTMwtffzU6W3snI1d3SS8lFSjaBgJmYgJg41NzRWVMVUCMrIIYxxc3T0VM7NzQgoV6irsq%2BJqkgEpFVANiZA4AcikAZjtkQywAanExnXUW4kxmI3nscQAGAEFxyenMOYXlu2AN7b3JCdopg1n5nVPRAH0ANzxMAHcL3f3bw7HHRZYjMACeGxmUIA9NCZi10CAQCDwZd/ncHgsDGpWIQIWNsDNYfCCIiQHYsAAPF5KACOBi0QzRu2JOhWzAImAUM2YJLJKPxOmQCCykOcYJmzgMeFY%2BFEM0IMyoxFQRhmBAQR2ewBmH2%2Bl05Rm8wk5QIRSP8AC9MC8CAA6B0ASXQlIUvx2aFoLUwlO8xB52NQ8IMzm1L2YCnDxFBYIg5pAYb1XxJZD5SIpPppmHpjMwj2droddo23TRAHZZLsoSsCANaGnkdHURXluIAKzSAtutsAESLpBmYFGbZ0tCH4jLPfmlb2k%2BZO0Nxo5R0eBDB3i0ayOABV3Z7vb7/cxA%2Br1zbaFuIN0ZgBaSHxxOfH5/CuXKH7zmHgNEGZ%2BzBUPBKShY4ewbR99Vfcx22kL5CAQGZtxAuYoLnMYZ3fOgDz9b8gwUAwqAAoCoXmUCHwIYgzneJ8J1kKC0KkSQJyneiqxmD8fWw48fyoAxbjSJCyIo14kxol4XgABQAJWwbdtwATReAAxABVBwdG3R0AHkHDEpjp3nDCvU/TiTxacokJ4vjAjtADtAgP9COvORfxWQi7StTAr301j2K/LigysCzeJKOg7WIWz0DjfDHO8vZWLMtRkHDBQlGyONWiBGYrFLFi4p2QysKPE8LyMFcxlAyyQtodyQ2WdLygHCBApvElym6HL0LYzDjKKn8SptAUBNq8jKIjKMYwgfqB3jIxmAAaxtDNqTpBlbjzBZ%2BvcvBrS8gkaKYjqDJmGs6zAkbhOoit%2BvG8E7XQDlmCvAdroFLadtLVCZz0v5dn8mZZrsK9b0hOwCDmV9WKheM0GxIFHlPDcXn6x5BLODYgceeH4ysVhYu%2BnZhl6VgQGGNthlIUxhi2cnUBJnQ5GchR%2BkGFdrk4cmCBJ6n2tIOaQDbTg7QATg8a5rjGIWtgADiF7gpckXhieGbhycp6nSFp4ZyYUEAtlITmqcJ0g4FgJA0CNGU3HIShze8S33GAKXOFIADWE5YgdYgZwufJ5w7CyMESfZ0hzdK%2BhNNoVhA8N0gsFm0R2B92O8BWEo3i5JOfWKbERmD0HlCT3FnFBYgwT0LAk5Gowg6Nmh6CYNgOB4fhBGEUQUAZmQhDwUN4F6VBvDSHXhhvBESIkGQ5E4Mtb00sZtaKKrNG0RpTGdqxKjiBJBAiAI6FXne/D32hN%2BqdxnZSYo0jKBp9DyQRL6qm%2B2liM%2BH9aA%2BL9aU/OnP3omYGEMLgRMSZkwpknTWlIpYeBvB4bgMxgDIGQDMKWdpOAzAgLgQgJBkJjGdjMPQFt2D%2BnGJwa89NJ4yA5j7XoEAkBZ2QIGMgFAIBZGAAocSIhlAMAQKgL4lNg62xlByQInD7CsB4XwtW5MhHEJAOwi83gFC8IICHVUdtiGaWxJI/hmdKTFB2MQdhJNyYMIyHKExLs6CMBYInZuAhnZtzEJ3eQRcdaQH7oPQIw9R6knHi46es9559EAU3OocoxHcN4bo4Ywcvigm8DXEBpNVYQJJlAmBcCEFIIweRXic1rzYH0Ywog/pMH4FKbgshBCXHUMNjzTUzAsDuCenzOWdothjDLB4bpHgthC04FsAWUshAkxVqQaugy9bSI1pYnWzsDbc2SZIcmkytjTLSVrfWNDejpw9oEEA3AgA"
+        target="_blank"><img class="img" src="https://img.shields.io/badge/try-online-blue.svg"
+         alt="Try Online"/></a></span>
+</figure>
+
+<p>Un-oh, something definitely went wrong!</p>
+<p>If we look closely at the previous code, we are actually returning a reference
+to a local <code>constexpr</code> variable &ndash; creating a dangling reference:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp">  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">name_array</span> <span class="o">=</span> <span class="n">substring_as_array</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">make_index_sequence</span><span class="o">&lt;</span><span class="n">name</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="o">&gt;</span><span class="p">{});</span>
+  <span class="c1">//        ^~~~~~~~~~~~~~~ &lt;-- This is local to the function
+</span><span class="c1"></span>
+  <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="n">name_array</span><span class="p">.</span><span class="n">data</span><span class="p">(),</span> <span class="n">name_array</span><span class="p">.</span><span class="n">size</span><span class="p">()};</span>
+</code></pre></div><p>What we would <em>like</em> is for <code>name_array</code> to be <code>static</code>; though unfortunately
+<code>constexpr</code> requirements in C++ prevents objects with <code>static</code> storage duration
+from being defined within <code>constexpr</code> functions.</p>
+<h3 id="fixing-our-dangling-pointer">Fixing our dangling pointer</h3>
+<p>Though we can&rsquo;t define a <code>static</code> storage duration object inside of a
+<code>constexpr</code> function, we <em>can</em> define a <code>constexpr</code> <code>static</code> storage duration
+object <em>from</em> a <code>constexpr</code> function &ndash; as long as its a static class member.</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">struct</span> <span class="nc">type_name_holder</span> <span class="p">{</span>
+  <span class="k">static</span> <span class="kr">inline</span> <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">value</span> <span class="o">=</span> <span class="p">...;</span>
+<span class="p">};</span>
+</code></pre></div><p>If we rework our code from before a little bit, we can rearrange it so that
+the parsing from the <code>type_name</code> function now returns the <code>array</code> of characters
+at <code>constexpr</code> time to initialize the <code>type_name_holder&lt;T&gt;::value</code> object.</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="c1">// Note: This has been renamed to &#39;type_name_array&#39;, and now has the return
+</span><span class="c1">// type deduced to simplify getting the array&#39;s size.
+</span><span class="c1"></span><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">constexpr</span> <span class="k">auto</span> <span class="n">type_name_array</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="p">...</span>
+  <span class="c1">// Note: removing the return type changes the format to now require &#39;]&#39; not &#39;;&#39;
+</span><span class="c1"></span>  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">suffix</span>   <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="s">&#34;]&#34;</span><span class="p">};</span>
+
+  <span class="p">...</span>
+
+  <span class="k">static_assert</span><span class="p">(</span><span class="n">start</span> <span class="o">&lt;</span> <span class="n">end</span><span class="p">);</span>
+
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">name</span> <span class="o">=</span> <span class="n">function</span><span class="p">.</span><span class="n">substr</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="p">(</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">));</span>
+  <span class="c1">// return the array now
+</span><span class="c1"></span>  <span class="k">return</span> <span class="nf">substring_as_array</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">make_index_sequence</span><span class="o">&lt;</span><span class="n">name</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="o">&gt;</span><span class="p">{});</span>
+<span class="p">}</span>
+
+<span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">struct</span> <span class="nc">type_name_holder</span> <span class="p">{</span>
+  <span class="c1">// Now the character array has static lifetime!
+</span><span class="c1"></span>  <span class="k">static</span> <span class="kr">inline</span> <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">value</span> <span class="o">=</span> <span class="n">type_name_array</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="p">};</span>
+
+<span class="c1">// The new &#39;type_name&#39; function
+</span><span class="c1"></span><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">constexpr</span> <span class="k">auto</span> <span class="n">type_name</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span>
+<span class="p">{</span>
+  <span class="k">constexpr</span> <span class="k">auto</span><span class="o">&amp;</span> <span class="n">value</span> <span class="o">=</span> <span class="n">type_name_holder</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span><span class="p">;</span>
+  <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="n">value</span><span class="p">.</span><span class="n">data</span><span class="p">(),</span> <span class="n">value</span><span class="p">.</span><span class="n">size</span><span class="p">()};</span>
+<span class="p">}</span>
+</code></pre></div><p>Trying this again now, we get the proper/expected output:</p>
+<pre><code>std::__cxx11::basic_string&lt;char&gt;
+</code></pre><p>And checking the assembly, we now see a sequence of binary values representing
+only the type name &ndash; and not the whole <code>__PRETTY_FUNCTION__</code></p>
+<pre><code class="language-assembly" data-lang="assembly">type_name_holder&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt;::value:
+        .byte   115
+        .byte   116
+        .byte   100
+        .byte   58
+        .byte   58
+        .byte   95
+        .byte   95
+        .byte   99
+        .byte   120
+        .byte   120
+        .byte   49
+        .byte   49
+        .byte   58
+        .byte   58
+        .byte   98
+        .byte   97
+        .byte   115
+        .byte   105
+        .byte   99
+        .byte   95
+        .byte   115
+        .byte   116
+        .byte   114
+        .byte   105
+        .byte   110
+        .byte   103
+        .byte   60
+        .byte   99
+        .byte   104
+        .byte   97
+        .byte   114
+        .byte   62
+        .byte   10
+</code></pre><figure class="image-container"><span class="link" ><a href="https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAM1QDsCBlZAQwBtMQBGAFlICsupVs1qhkAUgBMAISnTSAZ0ztkBPHUqZa6AMKpWAVwC2tENwAcpLegAyeWpgByxgEaZiXSwAdUCwuto9QxMzb19/OjsHZyM3D05LJRU1OgYCZmICIONTC0VlTFUAtIyCKKdXd09FdMzskLyFWrL7CtiqhIBKRVQDYmQOAHIpAGZ7ZEMsAGpxEZ11JuJMZiNZ7HEABgBBUfHJzBm5xftgNc2dyTHaCYNp2Z1j0QB9ADc8TAB3M%2B3d6/3DnQZYjMACeaymEIA9JCpk10CAQEDQedfjc7nMDGpWIQwSNsFNobCCPCQPYsAAPJ5KACOBi0AxR20JOiWzAImAUU2YRJJSNxOmQCAy4JcIKmLgMeFY%2BFEU0IUyoxFQRimBAQB0ewCmb0%2B53ZRi8wnZALhCL8AC9ME8CAA6O0ASXQ5IU3y2aFoTUw5K8xC5mNQsIMLk1T2YClDxGBIIgppAIZ1HyJZB5CLJXqpmFp9Mw90dzrtNrWnRRAHZZNsIUsCH1aCnEZHkWXFuIAKzSPMulsAEQLpCmYGGLZ0tAH4hLXdm5Z248ZW31hrZB3uBBBXi0KwOABVXe7Pd7fcx/arV1baBuI1GIMWfmXzhDd%2Bz936iFMfZgqHhyRDDl26/H3l8t6SJIrbSB8hAIFMm4/jMwFjhOIxTvedB7j6z4BgoBhUB%2BX4QrMv6xv%2BupASB3ZSCBM6IXeUwPl6aGHi%2BVAGNcKS1vhf4EMQJyvABY7SE8TwAAoAErYJum4AJpPAAYgAqo4OibvaADyjgCfBk6zshHqPvRR5NKUMFMSxAQ2h%2B2gQG%2BOGdLB0ivksOE2hamBXppFY0ShukHke1hGcxRR0DaxDmegMZYdZbk7O5BlqMgoYKEomQxs0AJTNYxZUT87m0U%2BDEBmeRhLiMv7GQFtBOUGizJaUfYQL5AC0RKlJ0GVIVMVY1oGwacdxYYXqCEAFZgfaxkYzAANZWmmlI0nS1w5nMQ1OXglquXifHwa1pYTllc6YAaRpFToK5rkNUGuosBiqMea5PENTwIPoWC%2Bht0XpLFcq0NiDgeTpdHeS%2BLxsHSMEnae558vc254mtU4aZlUV7Qdi4AmDZ3Q%2Bs2w5XpL5g3dG5XlM9XgoRPXPAmpZtdjAOoFIABs2rA0Vv54/dj3Su4UNrAiQOGAtbUdcQtak1x5O8WWvN0ja6BsswV59pLmDLatxaUXDM67eceVTGN9iE8TeKfQQMy3u5EKxmgmIAvcN3g4V9wiycayE/cNuxtYrCRRp2yDN0rAgIMLaDKQpiDBsweoAHOhyHIsK9P0S6XJwwcEAH4ctaQ40gC2nA2gAnHTlyXCMecbOYecWJIvD%2B4M3DB6H4ekJHgzBwoIAbKQqdh77pBwLASBoAaUruOQlCD14w8eMA5icKQH6sOyxBtxALhp8HLj2BkIIB8npCD4V9DKV92/d6QWBjaI7Br2feBLEULwctfXqFJiQy7/Y7I1432IuMCxAgnoLA18epGB3j3Gg9AmBsA4DwfgghhCiBQDHGQQg8DBngN0VAXhWJt0GPVOE%2BEJAyDkJwEsRNlIjFbgUMqmhtD1FMLPaw5QYhxEED4PwrF6FsPCKxZhlR4j5GSMUZoXDZ5JEKKxEomQ%2BHtAEQZOo%2BgciCHkS0aI/CuDdAUPHAYGihAByDiHa%2BzdyTmDpvVOm3ApjAGQMgKY5gbScCmBAXAhASCwRGLPKYegh7sBeknGy0diEyBTmvboEAkDP2QP6MgFAIAZGAAoQSIhlAMEeh8UOu9x5SjZAEJJDhWCpNQOk6%2BWTfEgASWeLwChHoED3sqCevjlKYkKcU0%2BkStjEASQHYOkS0gym6XPOgjAWBX1gQIWeCCxDIPkD/NukBMHYICLg/BxJCHTNIeQyhPQ%2Bg6LEcSeweSUlpIycHD4wIvBgL9vo%2BuRiA4mLMRYqxNinGcWYuNGy2ByQvyIL6Zx%2BAfnuM4AE6ZITu4Z3VMwZ6lBuhZwsDaDYIwSx0yRXTDYedOAbBzpYGuddSCgIxR3BuEcBlt1nl3dOVzBiSGDvijYhLbkt07qE7oD8l4BDMEAA%3D%3D"
+        target="_blank"><img class="img" src="https://img.shields.io/badge/try-online-blue.svg"
+         alt="Try Online"/></a></span>
+</figure>
+
+<p>So yay, we got it working for GCC!</p>
+<h3 id="supporting-other-compilers">Supporting other compilers</h3>
+<p>Clang and MSVC can be handled similarly, and only require the <code>prefix</code>,
+<code>suffix</code>, and <code>function</code> variables to be changed at compile-time
+(e.g. through <code>#ifdef</code>s).</p>
+<p>In the end, I came up with the following snippet to toggle the behavior:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">constexpr</span> <span class="k">auto</span> <span class="n">type_name_array</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="cp">#if defined(__clang__)
+</span><span class="cp"></span>  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">prefix</span>   <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="s">&#34;[T = &#34;</span><span class="p">};</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">suffix</span>   <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="s">&#34;]&#34;</span><span class="p">};</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">function</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="n">__PRETTY_FUNCTION__</span><span class="p">};</span>
+<span class="cp">#elif defined(__GNUC__)
+</span><span class="cp"></span>  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">prefix</span>   <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="s">&#34;with T = &#34;</span><span class="p">};</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">suffix</span>   <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="s">&#34;]&#34;</span><span class="p">};</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">function</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="n">__PRETTY_FUNCTION__</span><span class="p">};</span>
+<span class="cp">#elif defined(_MSC_VER)
+</span><span class="cp"></span>  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">prefix</span>   <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="s">&#34;type_name_array&lt;&#34;</span><span class="p">};</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">suffix</span>   <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="s">&#34;&gt;(void)&#34;</span><span class="p">};</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">function</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="n">__FUNCSIG__</span><span class="p">};</span>
+<span class="cp">#else
+</span><span class="cp"># error Unsupported compiler
+</span><span class="cp">#endif
+</span><span class="cp"></span>  <span class="p">...</span>
+<span class="p">}</span>
+</code></pre></div><p>These three variables are the only ones that would need to be changed to port to
+a different compiler that also offers some form of <code>__PRETTY_FUNCTION__</code>-like
+equivalent.</p>
+<h2 id="a-working-solution">A Working Solution</h2>
+<p>Putting it all together, our simple utility should look like:</p>
+<div class="highlight"><pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="cp">#include</span> <span class="cpf">&lt;string&gt;</span><span class="cp">
+</span><span class="cp">#include</span> <span class="cpf">&lt;string_view&gt;</span><span class="cp">
+</span><span class="cp">#include</span> <span class="cpf">&lt;array&gt;   // std::array</span><span class="cp">
+</span><span class="cp">#include</span> <span class="cpf">&lt;utility&gt; // std::index_sequence</span><span class="cp">
+</span><span class="cp"></span>
+<span class="k">template</span> <span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">size_t</span><span class="p">...</span><span class="n">Idxs</span><span class="o">&gt;</span>
+<span class="k">constexpr</span> <span class="k">auto</span> <span class="n">substring_as_array</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">string_view</span> <span class="n">str</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">index_sequence</span><span class="o">&lt;</span><span class="n">Idxs</span><span class="p">...</span><span class="o">&gt;</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">array</span><span class="p">{</span><span class="n">str</span><span class="p">[</span><span class="n">Idxs</span><span class="p">]...,</span> <span class="sc">&#39;\n&#39;</span><span class="p">};</span>
+<span class="p">}</span>
+
+<span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">constexpr</span> <span class="k">auto</span> <span class="n">type_name_array</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="cp">#if defined(__clang__)
+</span><span class="cp"></span>  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">prefix</span>   <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="s">&#34;[T = &#34;</span><span class="p">};</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">suffix</span>   <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="s">&#34;]&#34;</span><span class="p">};</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">function</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="n">__PRETTY_FUNCTION__</span><span class="p">};</span>
+<span class="cp">#elif defined(__GNUC__)
+</span><span class="cp"></span>  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">prefix</span>   <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="s">&#34;with T = &#34;</span><span class="p">};</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">suffix</span>   <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="s">&#34;]&#34;</span><span class="p">};</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">function</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="n">__PRETTY_FUNCTION__</span><span class="p">};</span>
+<span class="cp">#elif defined(_MSC_VER)
+</span><span class="cp"></span>  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">prefix</span>   <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="s">&#34;type_name_array&lt;&#34;</span><span class="p">};</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">suffix</span>   <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="s">&#34;&gt;(void)&#34;</span><span class="p">};</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">function</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="n">__FUNCSIG__</span><span class="p">};</span>
+<span class="cp">#else
+</span><span class="cp"># error Unsupported compiler
+</span><span class="cp">#endif
+</span><span class="cp"></span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">start</span> <span class="o">=</span> <span class="n">function</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span> <span class="o">+</span> <span class="n">prefix</span><span class="p">.</span><span class="n">size</span><span class="p">();</span>
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">end</span> <span class="o">=</span> <span class="n">function</span><span class="p">.</span><span class="n">rfind</span><span class="p">(</span><span class="n">suffix</span><span class="p">);</span>
+
+  <span class="k">static_assert</span><span class="p">(</span><span class="n">start</span> <span class="o">&lt;</span> <span class="n">end</span><span class="p">);</span>
+
+  <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">name</span> <span class="o">=</span> <span class="n">function</span><span class="p">.</span><span class="n">substr</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="p">(</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">));</span>
+  <span class="k">return</span> <span class="nf">substring_as_array</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">make_index_sequence</span><span class="o">&lt;</span><span class="n">name</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="o">&gt;</span><span class="p">{});</span>
+<span class="p">}</span>
+
+<span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">struct</span> <span class="nc">type_name_holder</span> <span class="p">{</span>
+  <span class="k">static</span> <span class="kr">inline</span> <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">value</span> <span class="o">=</span> <span class="n">type_name_array</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="p">};</span>
+
+<span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">constexpr</span> <span class="k">auto</span> <span class="n">type_name</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span>
+<span class="p">{</span>
+  <span class="k">constexpr</span> <span class="k">auto</span><span class="o">&amp;</span> <span class="n">value</span> <span class="o">=</span> <span class="n">type_name_holder</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span><span class="p">;</span>
+  <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">string_view</span><span class="p">{</span><span class="n">value</span><span class="p">.</span><span class="n">data</span><span class="p">(),</span> <span class="n">value</span><span class="p">.</span><span class="n">size</span><span class="p">()};</span>
+<span class="p">}</span>
+</code></pre></div><figure class="image-container"><span class="link" ><a href="https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAM1QDsCBlZAQwBtMQBGAFlICsupVs1qhkAUgBMAISnTSAZ0ztkBPHUqZa6AMKpWAVwC2tQVvQAZPLUwA5YwCNMxEAGZJpAA6oFhdbT1DE0FvXzU6Kxt7IycXd0VlTFV/BgJmYgJA41NOBJVw2lT0gki7R2c3DwU0jKzg3Ori0ujYyoBKRVQDYmQOAHIpV2tkQywAanFXHXVq4kxmI0nscQAGAEFB4dHMCanZ62Al1Y3JIdoRg3HJnX3RAH0ANzxMAHcj9c3z7d2ddOJmACeSzGIIA9KCxtV0CAQH9AcdPhcrlMDGpWIQga5sGNwZCCNCQNYsAAPO5KACOBi0vQR61xOjmzAImAUY2YeIJcMxOmQCHSwIcALGDgMeFY%2BFEY0IYyoxFQRjGBAQO1uwDGT1ex2ZRk8wmZPyhMN8AC9MHcCAA6K0ASXQxIU7zWaFo1UwxM8xDZqNQkIMDlVd2YCkDxH%2BAIghpAAY1LzxZA5MKJbrJmEp1Mw11t9qtFqWbQRAHZZOsQXMCN1aAnYaH4UXZuIAKzSLMOhsAERzpDGYAGDZ0tB74gLbcmxY2w9pa21uqZO2uBABni0Cx2ABVHc7Xe7PcxvYrF2baCuQ2GIPmPkWEac8FQxlgqNZMOgIHc7iMRMBX%2Be1iDN8zt16RBjB6mAPsSIK7G2VbRs8byXpIkiNtIq6QRMCFDiOrhjr%2BdBbh6gE%2BgoBhUGBEGTFBkYwZq8GIe2UiIROWHHDhLr/vhu5AVQBjnAUqGUQQxAHI8sFDtIr4AAoAErYKuq4AJp3AAYgAqrYOirtaADytivhho5Xq4yg3neoGPs%2Br4AOK2MpOhfsxYx/m67F7iBpEguR0ECUJMaifRLyEAgYwoR59F6UxJYObhbE7nuREkXg4Hua4FH4kaXn3D5NGNiO6GMdhkWsU5MWcdxyR0HxqVRuln6ZWJdxSTJ8lKap6laTpdxhWOgxGbe95mS%2BACyDC2QAatgknfixeHFT6rkJWRyWeYJGUiTRC5LncR5GGaXLXKFeX2Y5AEcYRxFuRVBJUXBsjoViEAPKgeDoPmuWYflR3OSVPH%2BBdaXLTVq11SpakMNaFm6QdHynMoSgGWMzhyp6ykugYnjeBkT6RTqYrOAZ5g3pOU3RQReLFKhXHfXQFoPtoEBzcSbRodIwFzGBFompgZ76RFH0zfD2jk6VBQWsQNPPnFYH5uFGwRY0ajIIGChKBkEY1AQPz8893Myz%2BBXTSTW1zotFNlbQ7N%2BrMqvFF2EDmGMAC0pMZG0Uv5WWFa%2Bv61WKyegIQIbXaRkYzAANZmkmpIUlS5wZlMhvs3gppc1ivnDq7hYjh86zTnqRs6Oty7bUFjqzAYqj7htht3Ag%2BhYJ6vmy2k8tSrQ6I2HrxMneqbBUqhBebceu1TOud3pxeb2Tjns4/AXhvFyn6y8yT/eG2eDvAvx/3CZqF7vVFRUEVIABs3eGEbUEr8eNfirjw9LDCDw97HbuYOWxCVpv3mA4/Z8WugTLMDPF2H%2BVIE5J3zJDccmcdbHC7sHawa97bAmsOrBuusQSRjQKiH41wK6HhXNcT%2Boglhrz2lMKs5hWDaz0usPoHRWAgD6A2PopBTB9BWCw1AjCdByDkJCLoPQ5ynE4CwggjCOEu1ICHNw3ALSuB4NwAAnA2FYkgAAcBY1ErALA2BsQhGHcBYWwjhpAuF9BYQoEAKxSBiPYXQ0gcBYBIDdEkb0ZAKAQHSMABQ4kRDKAYDXF4bCRGkDQNjPU/hfE2FYAE1AQTxEsLCZ4HGLhvFHk8AoGuBBQnymSewYgmlUSxPiXY0gLjkBrGIN4xhLDympAlDU0gNB6BMDYBwHg/BBDCFECgXhMghB4H9PADoqBPAFEsX0e2UJyISBkHITgBYHaaVcBYgRvRBBQmsFE/xgTgksJeP8TwjCRH0MYcw1hCTTGMOJGoo%2B9sj7cDGMAZAyAxgQAEtxEOjNsDElcUQT0EBcCEBIGheRjMeFzJkKIhJkjlTMDrpQDo0j3ByIbJIBZnAj6uE0WohsijXD6L6IY0gRguArGscYzhjTLG5FsRIhxMBEAgHKW48glAvE%2BL8TE3ZxzEm5LFEySJXLimUpyeEio757gfNoCHMVeTnCFMYDy0p5TKnVPMWU35yB6nWEac0xgLB2BcF4AIDw3SxB9PkOiIZkARljP8BMqZ%2BIZmWoWUslZnRujrIaPiLZwrlUhIOcwI5fQTmEvOaKsxNy7kPIcuat50qvljB%2BX8kFgL8D/NBZwcFlroV2Mkci1wcjXAltLWW0thLiWRupVYmxMLTl9EkCw0lnByUXNKWYvNEiOgPGcL4DQ3AgA%3D"
+        target="_blank"><img class="img" src="https://img.shields.io/badge/try-online-blue.svg"
+         alt="Try Online"/></a></span>
+</figure>
+
+<h2 id="closing-thoughts">Closing Thoughts</h2>
+<p>Although there may not be any built-in facility to get the full type-name of an
+object at compile-time; we can easily abuse other features of C++ to make this
+possible in a reasonably portable way.</p>
+<p>This is all possible thanks to the many reduced restrictions on <code>constexpr</code>
+functions, and thanks to a rich feature-set of <code>constexpr</code> functionality
+in the standard library (particularly <code>string_view</code>).</p></section><footer class="article footer"><section class="article labels"><section class="article-categories-section">
+    <header class="article languages header" style="float:left;">
+      <h4 style="display:none;">Categories</h4>
+    </header><a class="category" href=/categories/tutorial/>tutorial</a></section><section class="article-tags-section">
+    <header class="article languages header" style="float:left;">
+      <h4 style="display:none;">Tags</h4>
+    </header>
+    <p><a class="tag" href=/tags/c&#43;&#43;17/>c&#43;&#43;17</a><a class="tag" href=/tags/cross-platform/>cross-platform</a><a class="tag" href=/tags/compile-time/>compile-time</a><a class="tag" href=/tags/constexpr/>constexpr</a><a class="tag" href=/tags/gcc/>gcc</a><a class="tag" href=/tags/clang/>clang</a><a class="tag" href=/tags/msvc/>msvc</a></p>
+  </section></section><section class="article social-share">
+  <span class="sr-only">Share: </span>
+  <a href="https://twitter.com/intent/tweet?text=Getting%20an%20Unmangled%20Type%20Name%20at%20Compile%20Time&amp;url=https%3a%2f%2fbitwizeshift.github.io%2fposts%2f2020-03-09%2fgetting-an-unmangled-type-name-at-compile-time%2f" class="btn btn-social-icon btn-twitter" title="Share on Twitter">
+    <span class="iconfont icon-twitter" aria-hidden="true"></span>
+    <span class="sr-only">Twitter</span>
+  </a>
+  
+  <a href="https://www.facebook.com/sharer/sharer.php?u=https%3a%2f%2fbitwizeshift.github.io%2fposts%2f2020-03-09%2fgetting-an-unmangled-type-name-at-compile-time%2f" class="btn btn-social-icon btn-facebook" title="Share on Facebook">
+    <span class="iconfont icon-facebook" aria-hidden="true"></span>
+    <span class="sr-only">Facebook</span>
+  </a>
+  
+  <a href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2fbitwizeshift.github.io%2fposts%2f2020-03-09%2fgetting-an-unmangled-type-name-at-compile-time%2f" class="btn btn-social-icon btn-linkedin" title="Share on LinkedIn">
+    <span class="iconfont icon-linkedin" aria-hidden="true"></span>
+    <span class="sr-only">LinkedIn</span>
+  </a>
+  
+  <a href="https://www.reddit.com/submit?title=Getting%20an%20Unmangled%20Type%20Name%20at%20Compile%20Time&amp;url=https%3a%2f%2fbitwizeshift.github.io%2fposts%2f2020-03-09%2fgetting-an-unmangled-type-name-at-compile-time%2f" class="btn btn-social-icon btn-linkedin" title="Share on Reddit">
+    <span class="iconfont icon-reddit-alien" aria-hidden="true"></span>
+    <span class="sr-only">Reddit</span>
+  </a>
+</section>
+
+<aside class="article metadata"><div class="git-source-container visible-on-wide-devices">
+    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/cd4d4548167cf99a122c1865a2bc114d77d0973d/content/posts/2020-03-09/getting-an-unmangled-type-name-at-compile-time.md">cd4d4548167cf99a122c1865a2bc114d77d0973d</a></p>
+  </div>
+  <div class="git-source-container visible-on-small-devices">
+    <p class="git-source"><b>Source:</b> <a href="https://github.com/bitwizeshift/bitwizeshift.github.io/blob/cd4d4548167cf99a122c1865a2bc114d77d0973d/content/posts/2020-03-09/getting-an-unmangled-type-name-at-compile-time.md">cd4d454</a></p>
+  </div><div class="git-modified-container"><p class="last-modified-date"><b>Last modified:</b> <time title="2021-03-09 22:24:36 -0500 -0500" datetime="2021-03-09 22:24:36 -0500 -0500">March 9, 2021</time></p>
+  </div></aside>
+</footer>
+</article>
+</main><div class="article bottom"><section class="article bottom-navigation"><section class="previous-and-next"><section class="previous-article"><div class="visible-on-wide-devices">
+        <p><strong>
+          <a class="link" href="/posts/2020-03-02/builder-pattern-expressing-ownership-transfer/" title="Builder Pattern: Expressing ownership transfer"><span class="iconfont icon-previous"></span> Previous Post</a>
+        </strong></p>
+      </div>
+      <div class="visible-on-small-devices">
+        <p><strong>
+          <a class="link" href="/posts/2020-03-02/builder-pattern-expressing-ownership-transfer/" title="Builder Pattern: Expressing ownership transfer">Previous Post</a>
+        </strong></p>
+      </div></section></section>
+</section></div></section><footer id="footer">
+  <div class="footer-wrap"><section class="social">
+  <a class="link" href="/index.xml" title="RSS"><span class="sr-only">RSS</span><span class="iconfont icon-rss"></span></a><a class="link" href="mailto:bitwizeshift@rodusek.com" title="Email me"><span class="sr-only">Email me</span><span class="iconfont icon-envelope-open-o"></span></a><a class="link" href="https://github.com/bitwizeshift" title="Github"><span class="sr-only">Github</span><span class="iconfont icon-github"></span></a><a class="link" href="https://twitter.com/bitwizeshift" title="Twitter"><span class="sr-only">Twitter</span><span class="iconfont icon-twitter"></span></a><a class="link" href="https://linkedin.com/in/matthewrodusek" title="LinkedIn"><span class="sr-only">LinkedIn</span><span class="iconfont icon-linkedin"></span></a><a class="link" href="https://stackoverflow.com/users/1678770" title="StackOverflow"><span class="sr-only">StackOverflow</span><span class="iconfont icon-stackoverflow"></span></a></section>
+<p class="copyright">©2021 Matthew Rodusek.</p>
+<p class="powerby"><span>Powered&nbsp;by&nbsp;</span><a href="https://gohugo.io"
+    target="_blank" rel="noopener noreferrer">Hugo</a><span>&nbsp;&amp;&nbsp;</span><a href="https://themes.gohugo.io/hugo-notepadium/"
+    target="_blank" rel="noopener noreferrer">Notepadium</a></p>
+</div>
+</footer><script async defer src="/js/buttons.min.358cb9d33c8ce4b024a9addea34a7259a50f19baf13a938aa3fe1e39ba25a034d185527ed68b65ba6e7ac2e6cd0806db.js" integrity="sha384-NYy50zyM5LAkqa3eo0pyWaUPGbrxOpOKo/4eOboloDTRhVJ&#43;1otlum56wubNCAbb"></script>
+</body>
+
+</html>

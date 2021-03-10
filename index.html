@@ -9,6 +9,23 @@
     <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/about">About Me</a><a class="nav item" href="/tags">Tags</a><a class="nav item" href="/glossary">Glossary</a><a class="nav item" href="/license">License</a></nav></div></span></div></header>
 <section id="content"><main class="article"><article class="article article-container entry">
     <header class="article entry-header header">
+      <a href="/posts/2020-03-09/getting-an-unmangled-type-name-at-compile-time/" rel="bookmark">
+        <h1 class="article entry-title">Getting an Unmangled Type Name at Compile Time</h1><h2 class="article entry-subtitle subtitle">A really useful and obscure technique</h2></a><p class="article entry-date date">Posted on <time datetime="2021-03-09 19:21:59 -0500 -0500" title="2021-03-09 19:21:59 -0500 -0500">March 9, 2021</time></p></header>
+    <section class="article entry-content"><p class="note content"><p>Getting the name of a type in C++ is a hassle. For something that should be
+trivially known by the compiler at compile-time, the closest thing we have to
+getting the type in a <strong>cross-platform</strong> way is to use
+<a href="https://en.cppreference.com/w/cpp/types/type_info/name"target="_blank" rel="noopener noreferrer"><code>std::type_info::name</code></a>
+ which
+is neither at compile-time, nor is it guaranteed to be human-readable.</p>
+<p>In fact, both GCC and Clang actually return the compiler&rsquo;s <strong>mangled</strong> name
+rather than the human-readable name we are used to. Let&rsquo;s try to make something
+better using the modern utilities from <a class="tag link" href="/tags/c&#43;&#43;17/">c&#43;&#43;17</a>
+ and a little creative problem
+solving!</p><span class="mldr">&mldr;</span></p></section>
+    <footer class="article entry-footer"><p class="note labels"><a class="category" href="/categories/tutorial/">tutorial</a></p>
+    <p class="note labels"><a class="tag" href="/tags/c&#43;&#43;17/">c&#43;&#43;17</a><a class="tag" href="/tags/cross-platform/">cross-platform</a><a class="tag" href="/tags/compile-time/">compile-time</a><a class="tag" href="/tags/constexpr/">constexpr</a><a class="tag" href="/tags/gcc/">gcc</a><a class="tag" href="/tags/clang/">clang</a><a class="tag" href="/tags/msvc/">msvc</a></p></footer>
+  </article><article class="article article-container entry">
+    <header class="article entry-header header">
       <a href="/posts/2020-03-02/builder-pattern-expressing-ownership-transfer/" rel="bookmark">
         <h1 class="article entry-title">Builder Pattern: Expressing ownership transfer</h1><h2 class="article entry-subtitle subtitle">A simple underused approach to express moving members out of an object</h2></a><p class="article entry-date date">Posted on <time datetime="2021-03-02 17:06:40 -0500 -0500" title="2021-03-02 17:06:40 -0500 -0500">March 2, 2021</time></p></header>
     <section class="article entry-content"><p class="note content"><p>The Builder pattern is a common design in software development for late-binding
