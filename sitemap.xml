@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml"><url>
-    <loc>https://bitwizeshift.github.io/</loc><lastmod>2021-03-09T22:24:36-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/tags/c&#43;&#43;17/</loc><lastmod>2021-03-09T22:24:36-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/categories/</loc><lastmod>2021-03-09T22:24:36-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/tags/c&#43;&#43;17/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/categories/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
     <loc>https://bitwizeshift.github.io/tags/clang/</loc><lastmod>2021-03-09T22:24:36-05:00</lastmod></url><url>
     <loc>https://bitwizeshift.github.io/tags/compile-time/</loc><lastmod>2021-03-09T22:24:36-05:00</lastmod></url><url>
     <loc>https://bitwizeshift.github.io/tags/constexpr/</loc><lastmod>2021-03-09T22:24:36-05:00</lastmod></url><url>
@@ -10,28 +10,30 @@
     <loc>https://bitwizeshift.github.io/tags/gcc/</loc><lastmod>2021-03-09T22:24:36-05:00</lastmod></url><url>
     <loc>https://bitwizeshift.github.io/posts/2020-03-09/getting-an-unmangled-type-name-at-compile-time/</loc><lastmod>2021-03-09T22:24:36-05:00</lastmod></url><url>
     <loc>https://bitwizeshift.github.io/tags/msvc/</loc><lastmod>2021-03-09T22:24:36-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/posts/</loc><lastmod>2021-03-09T22:24:36-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/tags/</loc><lastmod>2021-03-09T22:24:36-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/categories/tutorial/</loc><lastmod>2021-03-09T22:24:36-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/posts/2020-03-02/builder-pattern-expressing-ownership-transfer/</loc><lastmod>2021-03-02T23:44:53-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/tags/c&#43;&#43;11/</loc><lastmod>2021-03-02T23:44:53-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/tags/ref-qualifiers/</loc><lastmod>2021-03-02T23:44:53-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/tags/esoteric/</loc><lastmod>2021-03-01T19:27:59-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/posts/2021-02-28/cppwtf-final-poetry/</loc><lastmod>2021-03-01T19:27:59-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/tags/language-lawyer/</loc><lastmod>2021-03-01T19:27:59-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/categories/c&#43;&#43;17/</loc><lastmod>2021-03-07T13:23:32-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3/</loc><lastmod>2021-03-07T13:23:32-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/series/delegate/</loc><lastmod>2021-03-07T13:23:32-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/categories/intermediate-templates/</loc><lastmod>2021-03-07T13:23:32-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/tags/optimizing/</loc><lastmod>2021-03-07T13:23:32-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/tags/performance/</loc><lastmod>2021-03-07T13:23:32-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/series/</loc><lastmod>2021-03-07T13:23:32-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/tags/templates/</loc><lastmod>2021-03-07T13:23:32-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2/</loc><lastmod>2021-03-07T13:23:32-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/categories/basic-templates/</loc><lastmod>2021-03-07T13:23:32-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/categories/c&#43;&#43;11/</loc><lastmod>2021-03-07T13:23:32-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/categories/c&#43;&#43;14/</loc><lastmod>2021-03-07T13:23:32-05:00</lastmod></url><url>
-    <loc>https://bitwizeshift.github.io/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type/</loc><lastmod>2021-03-07T13:23:32-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/posts/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/tags/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/categories/tutorial/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/posts/2020-03-02/builder-pattern-expressing-ownership-transfer/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/tags/c&#43;&#43;11/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/tags/design/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/categories/design-patterns/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/tags/ref-qualifiers/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/tags/esoteric/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/posts/2021-02-28/cppwtf-final-poetry/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/tags/funny/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/tags/language-lawyer/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/tags/callback/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/series/delegate/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/categories/intermediate-templates/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/tags/optimizing/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/tags/performance/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/series/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/tags/templates/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/categories/basic-templates/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/tags/c&#43;&#43;14/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
+    <loc>https://bitwizeshift.github.io/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type/</loc><lastmod>2021-03-10T00:51:28-05:00</lastmod></url><url>
     <loc>https://bitwizeshift.github.io/about/</loc><lastmod>2021-03-07T15:46:27-05:00</lastmod></url><url>
     <loc>https://bitwizeshift.github.io/glossary/</loc><lastmod>2021-03-01T19:29:04-05:00</lastmod></url><url>
     <loc>https://bitwizeshift.github.io/license/</loc><lastmod>2021-03-01T19:29:43-05:00</lastmod></url></urlset>

@@ -33,5 +33,23 @@ better using the modern utilities from &lt;a class=&#34;tag link&#34; href=&#34;
 solving!&lt;/p&gt;</description>
     </item>
     
+    <item>
+      <title>Creating a Fast and Efficient Delegate Type (Part 3)</title>
+      <link>https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3/</link>
+      <pubDate>Fri, 26 Feb 2021 22:19:51 -0500</pubDate>
+      <author>bitwizeshift@rodusek.com (Matthew Rodusek)</author>
+      <guid>https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3/</guid>
+      <description>In the previous post we reworked our &lt;code&gt;Delegate&lt;/code&gt; object into something more modern and easy-to-use by using &lt;code&gt;c++17&lt;/code&gt; &amp;ndash; but is this utility zero-overhead? In this post we will look at how to optimize this into a true zero-overhead utility.</description>
+    </item>
+    
+    <item>
+      <title>Creating a Fast and Efficient Delegate Type (Part 2)</title>
+      <link>https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2/</link>
+      <pubDate>Fri, 26 Feb 2021 22:18:32 -0500</pubDate>
+      <author>bitwizeshift@rodusek.com (Matthew Rodusek)</author>
+      <guid>https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2/</guid>
+      <description>In the previous post we saw how we could build a simple and light-weight &lt;code&gt;Delegate&lt;/code&gt; type that binds free functions, and member functions; however there are several notable limitation. Lets expand on this and make it even better using &lt;code&gt;c++17&lt;/code&gt; features.</description>
+    </item>
+    
   </channel>
 </rss>

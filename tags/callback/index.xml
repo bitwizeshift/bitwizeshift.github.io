@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>c&#43;&#43;17 on @bitwizeshift on software</title>
-    <link>https://bitwizeshift.github.io/categories/c&#43;&#43;17/</link>
-    <description>Recent content in c&#43;&#43;17 on @bitwizeshift on software</description>
+    <title>callback on @bitwizeshift on software</title>
+    <link>https://bitwizeshift.github.io/tags/callback/</link>
+    <description>Recent content in callback on @bitwizeshift on software</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <managingEditor>bitwizeshift@rodusek.com (Matthew Rodusek)</managingEditor>
@@ -11,7 +11,7 @@
     <copyright>©2021 Matthew Rodusek.</copyright>
     <lastBuildDate>Fri, 26 Feb 2021 22:19:51 -0500</lastBuildDate>
     
-        <atom:link href="https://bitwizeshift.github.io/categories/c++17/index.xml" rel="self" type="application/rss+xml" />
+        <atom:link href="https://bitwizeshift.github.io/tags/callback/index.xml" rel="self" type="application/rss+xml" />
     
     
     <item>
@@ -30,6 +30,16 @@
       <author>bitwizeshift@rodusek.com (Matthew Rodusek)</author>
       <guid>https://bitwizeshift.github.io/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2/</guid>
       <description>In the previous post we saw how we could build a simple and light-weight &lt;code&gt;Delegate&lt;/code&gt; type that binds free functions, and member functions; however there are several notable limitation. Lets expand on this and make it even better using &lt;code&gt;c++17&lt;/code&gt; features.</description>
+    </item>
+    
+    <item>
+      <title>Creating a Fast and Efficient Delegate Type (Part 1)</title>
+      <link>https://bitwizeshift.github.io/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type/</link>
+      <pubDate>Wed, 24 Feb 2021 20:03:14 -0500</pubDate>
+      <author>bitwizeshift@rodusek.com (Matthew Rodusek)</author>
+      <guid>https://bitwizeshift.github.io/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type/</guid>
+      <description>It&amp;rsquo;s often desirable when working in C++ to create callbacks that never leave a certain lifetime, and only bind functions or function pointers. The C++ standard only offers &lt;code&gt;std::function&lt;/code&gt; and &lt;code&gt;std::packaged_task&lt;/code&gt;, both of which are more heavy than they need to be.
+We can do better. Lets produce a better alternative to the existing solutions that could satisfy this problem in a nice and coherent way.</description>
     </item>
     
   </channel>

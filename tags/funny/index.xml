@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>funny on @bitwizeshift on software</title>
+    <link>https://bitwizeshift.github.io/tags/funny/</link>
+    <description>Recent content in funny on @bitwizeshift on software</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <managingEditor>bitwizeshift@rodusek.com (Matthew Rodusek)</managingEditor>
+    <webMaster>bitwizeshift@rodusek.com (Matthew Rodusek)</webMaster>
+    <copyright>©2021 Matthew Rodusek.</copyright>
+    <lastBuildDate>Sun, 28 Feb 2021 01:23:18 -0500</lastBuildDate>
+    
+        <atom:link href="https://bitwizeshift.github.io/tags/funny/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Final Poetry</title>
+      <link>https://bitwizeshift.github.io/posts/2021-02-28/cppwtf-final-poetry/</link>
+      <pubDate>Sun, 28 Feb 2021 01:23:18 -0500</pubDate>
+      <author>bitwizeshift@rodusek.com (Matthew Rodusek)</author>
+      <guid>https://bitwizeshift.github.io/posts/2021-02-28/cppwtf-final-poetry/</guid>
+      <description>Disclaimer: The C++WTF segment shines a light on the dark and esoteric corners of the C++ language for fun and profit  The C++ standards committee is very strongly against producing any kind of breaking changes when considering new language features &amp;ndash; especially keywords. Over the course of standardization, this has lead to terms like auto being repurposed, or awkward keywords like co_await and co_yield being introduced in C++20 to avoid breaking a handful of projects in the world that might possibly be using await or yield in their vocabulary.</description>
+    </item>
+    
+  </channel>
+</rss>
