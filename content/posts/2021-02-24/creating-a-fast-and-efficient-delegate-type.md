@@ -15,6 +15,7 @@ We can do better. Lets produce a better alternative to the existing solutions
 that could satisfy this problem in a nice and coherent way."
 github:
   repository: delegate
+aliases: [/posts/2021-02-24/creating-a-fast-and-efficient-delegate]
 ---
 
 {{<info>}}

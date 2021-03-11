@@ -5,6 +5,7 @@ date: 2021-03-02T17:06:40-05:00
 draft: false
 tags: [c++11, ref-qualifiers, design]
 categories: [design-patterns]
+aliases: [/posts/2020-03-02/builder-pattern-expressing-ownership-transfer]
 ---
 
 The Builder pattern is a common design in software development for late-binding

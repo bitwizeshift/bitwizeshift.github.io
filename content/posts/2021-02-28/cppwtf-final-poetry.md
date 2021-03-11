@@ -6,6 +6,7 @@ draft: false
 tags: [esoteric, language-lawyer, funny]
 categories: []
 # series: [cppwtf]
+aliases: [/posts/2021-02-28/cppwtf-final-poetry]
 ---
 
 {{<info>}}

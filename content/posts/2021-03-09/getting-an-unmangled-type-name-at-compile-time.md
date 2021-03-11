@@ -6,6 +6,7 @@ draft: false
 author: "Matthew Rodusek"
 tags: [c++17, cross-platform, compile-time, constexpr, gcc, clang, msvc]
 categories: [tutorial]
+aliases: [/posts/2020-03-09/getting-an-unmangled-type-name-at-compile-time]
 ---
 
 Getting the name of a type in C++ is a hassle. For something that should be

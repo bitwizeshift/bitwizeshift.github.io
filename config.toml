@@ -10,6 +10,9 @@ enableGitInfo = true
 # Enable Disqus
 # disqusShortname = "XXX"
 
+[permalinks]
+  posts = "/posts/:year/:month/:day/:title/"
+
 [author]
   name = "Matthew Rodusek"
   email = "bitwizeshift@rodusek.com"

@@ -13,6 +13,7 @@ even better using `c++17` features.
 "
 github:
   repository: delegate
+aliases: [/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2]
 ---
 
 {{<info>}}
