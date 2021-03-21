@@ -68,6 +68,10 @@ title = "About Me"
 url = "/about"
 
 [[params.nav.custom]]
+title = "Sponsor"
+url = "/sponsors"
+
+[[params.nav.custom]]
 title = "Tags"
 url = "/tags"
 
