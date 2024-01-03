@@ -14,18 +14,22 @@ github:
   link="https://github.com/bitwizeshift"
 >}}
 
-```cpp
+```rust
 
-const auto& author = blog.author();
-std::cout << author.introduction();
+let author: &'static blog::Author = blog::author();
+
+println!("{}", author.introduction());
 
 ```
 
-I'm Matthew `@bitwizeshift` Rodusek, a software developer from Waterloo, Ontario.
-I am an embedded developer by day, C++ template meta-programmer by
-night. When I see a problem that does not yet have a solution, I develop it --
+I'm Matt "`@bitwizeshift`" Rodusek, a software developer from Waterloo, Ontario.
+
+I'm a [Go][golang] software developer by day at [Verily], a Rust enthusiest by
+night, and a (retired?) C++ expert and template meta-programmer.
+When I see a problem that does not yet have a solution, I develop it --
 and try to release it to the open-source community (where possible) through my
-[GitHub](https://github.com/bitwizeshift).
+[Github]. Overall, I'm motivated by overcoming
+fun and challenging obstacles.
 
 I'm the author of several neat projects, including:
 
@@ -36,12 +40,19 @@ I'm the author of several neat projects, including:
 * [`Result`](https://github.com/bitwizeshift/result): A `result` type similar to
   those found in modern languages like `Rust` or `Swift`
 
-Take a look at my [Github](https://github.com/bitwizeshift) to really see what
-I'm about.
+* [`actions-github`](https://github.com/bitwizeshift/actions-github): A repo of
+  composite actions wrapping basic Github API calls that otherwise are not
+  provided by official actions -- great for repository automation.
+
+Take a look at my [Github] to really see what I'm about!
 
 When I'm not working on my open-source work or blogging, you might find me
 answering questions on [StackOverflow](https://stackoverflow.com/users/1678770)
 where my top tags are `c++` and `language-lawyer`.
+
+[golang]: https://go.dev
+[Verily]: https://verily.com
+[Github]: https://github.com/bitwizeshift
 
 ## Support
 

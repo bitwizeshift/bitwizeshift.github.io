@@ -1,8 +1,8 @@
 baseURL = "https://bitwizeshift.github.io/"
 languageCode = "en-us"
-title = "@bitwizeshift on software"
+title = "As told by Matt"
 theme = "hugo-notepadium"
-copyright = "©2021 Matthew Rodusek."
+copyright = "©2020-2024 Matthew Rodusek."
 
 enableRobotsTXT = true
 enableGitInfo = true
