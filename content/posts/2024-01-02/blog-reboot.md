@@ -56,7 +56,7 @@ that their articles once inspired me. If I can reach even one person this way,
 that will make it all worth it for me.
 
 [Stefan Reinalter of Molecular Musings]: https://blog.molecular-matters.com
-[Jonathan of foonathan::blog()]: https://www.foonathan.net
+[Jonathan of `foonathan::blog()`]: https://www.foonathan.net
 
 ## Looking Forward
 
