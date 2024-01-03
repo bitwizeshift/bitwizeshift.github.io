@@ -71,9 +71,5 @@ title = "Sponsor"
 url = "/sponsors"
 
 [[params.nav.custom]]
-title = "Tags"
-url = "/tags"
-
-[[params.nav.custom]]
 title = "License"
 url = "/license"
