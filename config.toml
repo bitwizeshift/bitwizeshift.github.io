@@ -54,7 +54,7 @@ enable = false  # Comments are enabled per blog post
 [params.syntax]
 use = "none"
 theme = "github-gist"
-darkTheme = "xcode-dark"
+darkTheme = "github-dark"
 
 [params.nav]
 showCategories = true

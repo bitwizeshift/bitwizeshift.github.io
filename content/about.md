@@ -15,11 +15,9 @@ github:
 >}}
 
 ```rust
-
 let author: &'static blog::Author = blog::author();
 
 println!("{}", author.introduction());
-
 ```
 
 I'm Matt "`@bitwizeshift`" Rodusek, a software developer from Waterloo, Ontario.
