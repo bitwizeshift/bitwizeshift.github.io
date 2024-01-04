@@ -9,10 +9,10 @@ categories: []
 aliases: [/posts/2021-02-28/cppwtf-final-poetry]
 ---
 
-{{<info>}}
-**Disclaimer:** The C++WTF segment shines a light on the dark and
+{{<note>}}
+The C++WTF segment shines a light on the dark and
 esoteric corners of the C++ language for fun and profit
-{{</info>}}
+{{</note>}}
 
 The C++ standards committee is very strongly against producing any kind of
 breaking changes when considering new language features -- especially keywords.

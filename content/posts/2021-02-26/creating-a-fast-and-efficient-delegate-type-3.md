@@ -17,9 +17,9 @@ github:
 aliases: [/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3]
 ---
 
-{{<info>}}
-**Note:** This is part 3 of a 3 part series.
-{{</info>}}
+{{<note>}}
+This is part 3 of a 3 part series.
+{{</note>}}
 
 
 In the [previous post](/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2)

@@ -18,9 +18,9 @@ github:
 aliases: [/posts/2021-02-24/creating-a-fast-and-efficient-delegate]
 ---
 
-{{<info>}}
-**Note:** This is part 1 of a 3 part series.
-{{</info>}}
+{{<note>}}
+This is part 1 of a 3 part series.
+{{</note>}}
 
 When working in C++ systems, a frequent design pattern that presents itself is
 the need to bind and reuse functions in a type-erased way. Whether it's
