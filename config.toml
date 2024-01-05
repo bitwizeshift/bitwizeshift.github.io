@@ -1,7 +1,7 @@
 baseURL = "https://bitwizeshift.github.io/"
 languageCode = "en-us"
 title = "As told by Matt"
-theme = "hugo-notepadium"
+theme = "hugo-remarkably-average"
 copyright = "©2020-2024 Matthew Rodusek."
 
 enableRobotsTXT = true
@@ -30,7 +30,8 @@ noClasses = false
 unsafe = true  # enable raw HTML in Markdown
 
 [params]
-style = "auto"  # default: auto. light: light theme, dark: dark theme, auto: based on system.
+# Style for light/dark mode. "auto" lets the system decide.
+style = "auto"
 dateFormat = "January 2, 2006"
 logo = ""
 # slogan = "A C++ template metaprogramming blog"
@@ -54,7 +55,7 @@ enable = false  # Comments are enabled per blog post
 [params.syntax]
 use = "none"
 theme = "github-gist"
-darkTheme = "github-dark"
+darkTheme = "vscode-dark"
 
 [params.nav]
 showCategories = true
@@ -69,6 +70,15 @@ url = "/about"
 [[params.nav.custom]]
 title = "Sponsor"
 url = "/sponsors"
+
+
+[[params.nav.custom]]
+title = "Tags"
+url = "/tags"
+
+[[params.nav.custom]]
+title = "Categories"
+url = "/categories"
 
 [[params.nav.custom]]
 title = "License"
