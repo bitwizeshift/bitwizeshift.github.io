@@ -23,63 +23,79 @@ enableGitInfo = true
   tag = "tags"
 
 [markup.highlight]
-codeFences = true
-noClasses = false
+  codeFences = true
+  noClasses = false
 
 [markup.goldmark.renderer]
-unsafe = true  # enable raw HTML in Markdown
+  unsafe = true  # enable raw HTML in Markdown
 
 [params]
-# Style for light/dark mode. "auto" lets the system decide.
-style = "auto"
-dateFormat = "January 2, 2006"
-logo = ""
-# slogan = "A C++ template metaprogramming blog"
-# license = "MIT"  # MIT License
-repo = "https://github.com/bitwizeshift/bitwizeshift.github.io"
+  # Style for light/dark mode. "auto" lets the system decide.
+  style = "auto"
+  dateFormat = "January 2, 2006"
+  logo = ""
+  # slogan = "A C++ template metaprogramming blog"
+  # license = "MIT"  # MIT License
+  repo = "https://github.com/bitwizeshift/bitwizeshift.github.io"
 
 [params.social]
-github = "bitwizeshift"
-linkedin = "matthewrodusek"
-email = "bitwizeshift@rodusek.com"
-stackoverflow = "1678770"
-reddit = "bitwizeshift"
+  github = "bitwizeshift"
+  linkedin = "matthewrodusek"
+  email = "bitwizeshift@rodusek.com"
+  stackoverflow = "1678770"
+  reddit = "bitwizeshift"
 
 [params.github]
-username = "bitwizeshift"
-repository = "bitwizeshift.github.io"
+  username = "bitwizeshift"
+  repository = "bitwizeshift.github.io"
 
 [params.comments]
-enable = false  # Comments are enabled per blog post
+  enable = false  # Comments are enabled per blog post
 
 [params.syntax]
-use = "none"
-theme = "github-gist"
-darkTheme = "vscode-dark"
+  use = "none"
+  theme = "github-gist"
+  darkTheme = "vscode-dark"
 
 [params.nav]
-showCategories = true
-showTags = true
+  showCategories = true
+  showTags = true
 
-# custom navigation items
+  # custom navigation items
 
-[[params.nav.custom]]
-title = "About Me"
-url = "/about"
+  [[params.nav.custom]]
+    title = "About Me"
+    url = "/about"
 
-[[params.nav.custom]]
-title = "Sponsor"
-url = "/sponsors"
+  [[params.nav.custom]]
+    title = "Sponsor"
+    url = "/sponsors"
 
 
-[[params.nav.custom]]
-title = "Tags"
-url = "/tags"
+  [[params.nav.custom]]
+    title = "Tags"
+    url = "/tags"
 
-[[params.nav.custom]]
-title = "Categories"
-url = "/categories"
+  [[params.nav.custom]]
+    title = "Categories"
+    url = "/categories"
 
-[[params.nav.custom]]
-title = "License"
-url = "/license"
+  [[params.nav.custom]]
+    title = "License"
+    url = "/license"
+
+[languages]
+  [languages.en]
+    languageName = 'English'
+    languageCode = 'en'
+    weight = 10
+
+  [languages.fr]
+    languageName = 'Français'
+    languageCode = 'fr'
+    weight = 20
+
+  [languages.de]
+    languageName = 'Deutsch'
+    languageCode = 'de'
+    weight = 30
