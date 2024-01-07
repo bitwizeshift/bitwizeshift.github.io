@@ -18,6 +18,7 @@ enableGitInfo = true
   email = "bitwizeshift@rodusek.com"
 
 [params.profile]
+  enable = true
   name = "Matt Rodusek"
   email = "bitwizeshift@rodusek.com"
   github = "bitwizeshift"

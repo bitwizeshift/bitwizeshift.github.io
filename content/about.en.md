@@ -6,6 +6,8 @@ aliases: ["about", "aboutme"]
 author: "Matthew Rodusek"
 github:
   ignore: true
+profile:
+  enable: false
 ---
 
 {{< round-figure

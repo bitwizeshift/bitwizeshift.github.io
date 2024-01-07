@@ -6,6 +6,8 @@ aliases: ["license", "attribution"]
 author: "Matthew Rodusek"
 github:
   ignore: true
+profile:
+  enable: false
 ---
 
 Unless otherwise specified, I release all software and code snippets I write
