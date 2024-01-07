@@ -8,6 +8,7 @@ github:
   ignore: true
 profile:
   enable: false
+readingTime: false
 ---
 
 Unless otherwise specified, I release all software and code snippets I write

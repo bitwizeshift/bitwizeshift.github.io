@@ -43,6 +43,7 @@ enableGitInfo = true
   style = "auto"
   dateFormat = "January 2, 2006"
   logo = ""
+  readingTime = true
   # slogan = "A C++ template metaprogramming blog"
   # license = "MIT"  # MIT License
   repo = "https://github.com/bitwizeshift/bitwizeshift.github.io"

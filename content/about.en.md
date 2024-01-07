@@ -8,6 +8,7 @@ github:
   ignore: true
 profile:
   enable: false
+readingTime: false
 ---
 
 {{< round-figure

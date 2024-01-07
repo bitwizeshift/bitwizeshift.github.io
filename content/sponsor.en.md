@@ -7,6 +7,7 @@ github:
   ignore: true
 profile:
   enable: false
+readingTime: false
 ---
 
 If you like this blog, like and use my work in any real-world products, or
