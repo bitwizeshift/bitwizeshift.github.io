@@ -14,8 +14,16 @@ enableGitInfo = true
   posts = "/posts/:year/:month/:day/:title/"
 
 [author]
-  name = "Matthew Rodusek"
+  name = "Matt Rodusek"
   email = "bitwizeshift@rodusek.com"
+
+[params.profile]
+  name = "Matt Rodusek"
+  email = "bitwizeshift@rodusek.com"
+  github = "bitwizeshift"
+  linkedin = "matthewrodusek"
+  stackoverflow = "1678770"
+  reddit = "bitwizeshift"
 
 [taxonomies]
   category = "categories"
