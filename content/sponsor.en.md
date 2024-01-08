@@ -8,6 +8,7 @@ github:
 profile:
   enable: false
 readingTime: false
+header-backlink: title
 ---
 
 If you like this blog, like and use my work in any real-world products, or

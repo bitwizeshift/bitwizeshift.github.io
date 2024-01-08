@@ -8,6 +8,7 @@ github:
 profile:
   enable: false
 readingTime: false
+header-backlink: title
 ---
 
 Some of the terminology I use throughout this blog may be both technical and

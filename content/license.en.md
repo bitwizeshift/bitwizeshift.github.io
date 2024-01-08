@@ -9,6 +9,7 @@ github:
 profile:
   enable: false
 readingTime: false
+header-backlink: title
 ---
 
 Unless otherwise specified, I release all software and code snippets I write

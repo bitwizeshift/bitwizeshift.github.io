@@ -9,6 +9,7 @@ github:
 profile:
   enable: false
 readingTime: false
+header-backlink: title
 ---
 
 {{< round-figure
