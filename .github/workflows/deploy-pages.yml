@@ -57,6 +57,10 @@ jobs:
             --minify                                                           \
             --baseURL "${{ steps.pages.outputs.base_url }}/"
 
+      - name: Create CNAME record
+        run: |
+          echo "rodusek.com" > "./public/CNAME"
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
