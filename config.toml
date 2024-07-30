@@ -15,12 +15,10 @@ enableGitInfo = true
 
 [author]
   name = "Matt Rodusek"
-  email = "bitwizeshift@rodusek.com"
 
 [params.profile]
   enable = true
   name = "Matt Rodusek"
-  email = "bitwizeshift@rodusek.com"
   github = "bitwizeshift"
   linkedin = "matthewrodusek"
   stackoverflow = "1678770"
@@ -51,7 +49,6 @@ enableGitInfo = true
 [params.social]
   github = "bitwizeshift"
   linkedin = "matthewrodusek"
-  email = "bitwizeshift@rodusek.com"
   stackoverflow = "1678770"
   reddit = "bitwizeshift"
 
