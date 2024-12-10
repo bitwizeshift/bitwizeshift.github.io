@@ -1,0 +1,10 @@
+<html>
+  <head>
+    <title>{{ .Title }}</title>
+    <meta name="go-import" content="{{ .Params.go.import }} git {{ .Params.go.source }}">
+    <meta name="go-source" content="{{ .Params.go.import }} {{ .Params.go.source }} {{ .Params.go.source }}/tree/master{/dir} {{ .Params.go.source }}/blob/master{/dir}/{file}#L{line}">
+    <meta http-equiv="refresh" content="0; url={{ .Params.go.source }}">
+  </head>
+  <body>
+  </body>
+</html>
