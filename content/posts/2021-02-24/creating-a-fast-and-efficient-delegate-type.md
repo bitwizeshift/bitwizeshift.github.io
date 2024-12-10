@@ -28,6 +28,8 @@ returning a callback from a function, or enabling support for binding listeners
 to an event (such as through a `signal` or observer pattern), this is a pattern
 that can be found everywhere.
 
+<-- more -->
+
 In many cases, especially when working in more constrained systems such as an
 embedded system, these bound functions will often be nothing more than small
 views of existing functions -- either as just a function pointer, or as a

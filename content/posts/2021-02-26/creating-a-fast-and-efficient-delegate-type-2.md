@@ -20,7 +20,6 @@ aliases: [/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2]
 This is part 2 of a 3 part series.
 {{</note>}}
 
-
 In the [previous post](/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type),
 we saw how we could build a simple and light-weight `Delegate` type that binds
 free functions, and member functions. However we have a notable limitation that
@@ -29,6 +28,8 @@ we require specifying the _type_ of the members being bound
 only the _exact_ type. We can't bind anything that is *covariant* to it.
 
 Lets improve upon that.
+
+<-- more -->
 
 {{<table-of-contents>}}
 

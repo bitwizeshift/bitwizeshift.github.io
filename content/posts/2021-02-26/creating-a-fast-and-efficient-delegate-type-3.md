@@ -21,13 +21,14 @@ aliases: [/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-3]
 This is part 3 of a 3 part series.
 {{</note>}}
 
-
 In the [previous post](/posts/2021-02-26/creating-a-fast-and-efficient-delegate-type-2)
 we updated our `Delegate` object that we've been working on since
 [the first post](/posts/2021-02-24/creating-a-fast-and-efficient-delegate-type)
 to support covariance.
 
 In this post, we will look at how to make this a true **zero-overhead** utility
+
+<-- more -->
 
 {{<table-of-contents>}}
 
