@@ -18,7 +18,7 @@ is neither at compile-time, nor is it guaranteed to be human-readable.
 
 In fact, both GCC and Clang actually return the compiler's **mangled** name
 rather than the human-readable name we are used to. Let's try to make something
-better using the modern utilities from {{<tag "c++17">}} and a little creative problem
+better using the modern utilities from {{<language "c++17">}} and a little creative problem
 solving!
 
 <!--more-->

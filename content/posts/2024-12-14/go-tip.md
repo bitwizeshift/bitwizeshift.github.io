@@ -10,7 +10,7 @@ languages: [go]
 header-backlink: title
 ---
 
-In {{<tag go>}}, interfaces are satisfied by any type that implements all of the
+In {{<language go>}}, interfaces are satisfied by any type that implements all of the
 methods defined in the interface. This makes Go interfaces "open" types, meaning
 that any type can satisfy an interface at any time.
 

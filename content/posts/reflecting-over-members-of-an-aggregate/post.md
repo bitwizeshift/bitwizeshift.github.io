@@ -30,7 +30,7 @@ serialized, and all are:
 * Are guaranteed to be [aggregates][agg.init]
 
 Being a template meta-programmer, I thought it would be a fun challenge to try
-to solve this in a generic way using {{<tag "c++17" >}} -- and in the process I
+to solve this in a generic way using {{<language "c++17" >}} -- and in the process I
 accidentally discovered a generic solution for iterating all members of
 **any aggregate type**.
 
@@ -59,7 +59,7 @@ The first is that Aggregates cannot have custom constructors; they can only use
 either the default-generated ones (copy/move/default), or be
 [aggregate initialized][agg.init]. This fact will be important in a moment.
 
-The second is that, since {{<tag "c++17">}}, aggregates can be used with
+The second is that, since {{<language "c++17">}}, aggregates can be used with
 [structured bindings expressions](structured_binding) without any extra work
 needed by the compiler author -- for example:
 
