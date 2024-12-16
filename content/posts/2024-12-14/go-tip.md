@@ -18,7 +18,7 @@ However, did you know that Go actually has a mechanism for restricting who can
 implement these types? This {{<category "go-tip">}} will tell you how you can
 accomplish this.
 
-<!-- more -->
+<!--more-->
 
 {{<table-of-contents>}}
 

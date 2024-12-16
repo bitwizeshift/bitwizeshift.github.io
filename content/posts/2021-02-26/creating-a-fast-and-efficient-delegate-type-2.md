@@ -30,7 +30,7 @@ only the _exact_ type. We can't bind anything that is *covariant* to it.
 
 Lets improve upon that.
 
-<-- more -->
+<!--more-->
 
 {{<table-of-contents>}}
 

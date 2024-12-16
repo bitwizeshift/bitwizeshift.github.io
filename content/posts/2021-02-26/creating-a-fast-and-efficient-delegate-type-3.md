@@ -29,7 +29,7 @@ to support covariance.
 
 In this post, we will look at how to make this a true **zero-overhead** utility
 
-<-- more -->
+<!--more-->
 
 {{<table-of-contents>}}
 
