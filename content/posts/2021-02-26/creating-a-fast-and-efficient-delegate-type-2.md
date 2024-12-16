@@ -3,7 +3,8 @@ title: "Creating a Fast and Efficient Delegate Type (Part 2)"
 subtitle: "Upgrading Delegate to C++17"
 date: 2021-02-26T22:18:32-05:00
 draft: false
-tags: [templates, callback, c++17]
+tags: [templates, callback]
+languages: [c++, c++17]
 categories: [intermediate-templates, tutorial]
 series: [delegate]
 summary: "In the previous post we saw how we could build a simple and

@@ -28,6 +28,7 @@ enableGitInfo = true
   category = "categories"
   series = "series"
   tag = "tags"
+  language = "languages"
 
 [markup.highlight]
   codeFences = true

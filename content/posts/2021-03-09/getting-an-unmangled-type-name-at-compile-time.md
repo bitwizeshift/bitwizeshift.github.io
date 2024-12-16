@@ -4,7 +4,8 @@ subtitle: "A really useful and obscure technique"
 date: 2021-03-09T19:21:59-05:00
 draft: false
 author: "Matthew Rodusek"
-tags: [c++17, cross-platform, compile-time, constexpr, gcc, clang, msvc]
+tags: [cross-platform, compile-time, constexpr, gcc, clang, msvc]
+languages: [c++, c++17]
 categories: [tutorial]
 aliases: [/posts/2020-03-09/getting-an-unmangled-type-name-at-compile-time]
 ---

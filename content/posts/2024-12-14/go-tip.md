@@ -4,8 +4,9 @@ subtitle: "Controlling implementations of an interface"
 date: 2024-12-14
 draft: false
 author: "Matthew Rodusek"
-tags: [go, tip]
+tags: [tip]
 categories: [design-patterns, go-tips]
+languages: [go]
 header-backlink: title
 ---
 

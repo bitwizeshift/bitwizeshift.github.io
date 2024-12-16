@@ -4,6 +4,7 @@ subtitle: "An entry in the C++wtf segment"
 date: 2021-02-28T01:23:18-05:00
 draft: false
 tags: [esoteric, language-lawyer, funny]
+languages: [c++]
 categories: []
 # series: [cppwtf]
 aliases: [/posts/2021-02-28/cppwtf-final-poetry]

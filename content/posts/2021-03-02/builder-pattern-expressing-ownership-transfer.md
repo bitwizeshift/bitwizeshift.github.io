@@ -3,7 +3,8 @@ title: "Builder Pattern: Expressing ownership transfer"
 subtitle: "A simple underused approach to express moving members out of an object"
 date: 2021-03-02T17:06:40-05:00
 draft: false
-tags: [c++11, ref-qualifiers, design]
+tags: [ref-qualifiers, design]
+languages: [c++, c++11]
 categories: [design-patterns]
 aliases: [/posts/2020-03-02/builder-pattern-expressing-ownership-transfer]
 ---

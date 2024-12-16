@@ -4,7 +4,8 @@ subtitle: "Implementing 'reflection' qualities using standard C++"
 date: 2021-03-21T11:31:40-04:00
 draft: false
 author: "Matthew Rodusek"
-tags: [c++17, serialization, reflection, templates]
+tags: [serialization, reflection, templates]
+languages: [c++, c++17]
 categories: [complex-templates, tutorial]
 ---
 
